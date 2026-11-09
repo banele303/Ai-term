@@ -1,5 +1,6 @@
 import { v } from "convex/values"
 
+import type { Id } from "./_generated/dataModel"
 import { mutation, query } from "./_generated/server"
 import { requireStaff } from "./lib/auth"
 import { writeLog } from "./logs"
@@ -23,15 +24,26 @@ export const listWorkspace = query({
 
     const chats = rawChats
       .map((chat) => {
-        const chatBots = chat.botIds
+        let activeBotList = chat.botIds
           .map((id) => botMap.get(id))
           .filter((b): b is NonNullable<typeof b> => Boolean(b))
-          .map((b) => ({
-            id: b._id,
-            name: b.name,
-            avatar: b.avatar,
-            job: b.job,
-          }))
+
+        // In group chats / teams, ensure the WhatsApp Executive bot is always included in the team
+        if (chat.kind === "group") {
+          const waBot = bots.find(
+            (b) => b.name.includes("WhatsApp") || b.name.includes("Fame")
+          )
+          if (waBot && !activeBotList.some((b) => b._id === waBot._id)) {
+            activeBotList.push(waBot)
+          }
+        }
+
+        const chatBots = activeBotList.map((b) => ({
+          id: b._id,
+          name: b.name,
+          avatar: b.avatar,
+          job: b.job,
+        }))
 
         if (chatBots.length === 0) return null
 
@@ -75,16 +87,27 @@ export const getChat = query({
       .collect()
 
     const botMap = new Map(allBots.map((b) => [b._id, b]))
-    const chatBots = chat.botIds
+    let activeBotList = chat.botIds
       .map((id) => botMap.get(id))
       .filter((b): b is NonNullable<typeof b> => Boolean(b))
-      .map((b) => ({
-        id: b._id,
-        name: b.name,
-        avatar: b.avatar,
-        job: b.job,
-        instructions: b.instructions,
-      }))
+
+    // In group chats / teams, ensure the WhatsApp Executive bot is always available in the team
+    if (chat.kind === "group") {
+      const waBot = allBots.find(
+        (b) => b.name.includes("WhatsApp") || b.name.includes("Fame")
+      )
+      if (waBot && !activeBotList.some((b) => b._id === waBot._id)) {
+        activeBotList.push(waBot)
+      }
+    }
+
+    const chatBots = activeBotList.map((b) => ({
+      id: b._id,
+      name: b.name,
+      avatar: b.avatar,
+      job: b.job,
+      instructions: b.instructions,
+    }))
 
     const rawMessages = await ctx.db
       .query("teammate_messages")
@@ -272,6 +295,59 @@ export const ensureWorkspaceFleet = mutation({
           avatar: spec.avatar,
           created: true,
         })
+      }
+    }
+
+    // Ensure dedicated "WhatsApp & Client Operations Team" group chat exists
+    const allBotsAfterFleet = await ctx.db.query("teammate_bots").collect()
+    const waBot = allBotsAfterFleet.find((b) => b.name.includes("WhatsApp") || b.name.includes("Fame"))
+    const quoteBot = allBotsAfterFleet.find((b) => b.name.includes("Quote"))
+    const commBot = allBotsAfterFleet.find((b) => b.name.includes("Comm") || b.name.includes("Aero"))
+    const opsBot = allBotsAfterFleet.find((b) => b.name.includes("Ops"))
+    const teamBotIds = [waBot?._id, quoteBot?._id, commBot?._id, opsBot?._id].filter(Boolean) as Id<"teammate_bots">[]
+
+    const existingGroup = await ctx.db
+      .query("teammate_chats")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("kind"), "group"),
+          q.eq(q.field("name"), "WhatsApp & Client Operations Team")
+        )
+      )
+      .first()
+
+    if (!existingGroup && teamBotIds.length > 0) {
+      const groupChatId = await ctx.db.insert("teammate_chats", {
+        userId,
+        kind: "group",
+        name: "WhatsApp & Client Operations Team",
+        botIds: teamBotIds,
+        lastMessagePreview: "WhatsApp & Client Operations Team is live. AutoFame WhatsApp Executive (+27 63 199 5124) is connected.",
+        lastMessageAt: now,
+        createdAt: now,
+      })
+      await ctx.db.insert("teammate_messages", {
+        chatId: groupChatId,
+        role: "assistant",
+        text: "Welcome to the WhatsApp & Client Operations Team! AutoFame WhatsApp Executive (+27 63 199 5124), QuoteCraft AI, AeroComm AI, and AutoPulse Ops collaborate here to handle client inquiries, live inventory lookups, instant VAT quotes, and bank finance dossiers.",
+        botId: waBot?._id,
+        createdAt: now,
+      })
+    }
+
+    // Automatically ensure all existing group chats (like user's team) include the WhatsApp Executive bot
+    if (waBot) {
+      const allGroupChats = await ctx.db
+        .query("teammate_chats")
+        .filter((q) => q.eq(q.field("kind"), "group"))
+        .collect()
+
+      for (const gc of allGroupChats) {
+        if (!gc.botIds.some((id) => id.toString() === waBot._id.toString())) {
+          await ctx.db.patch(gc._id, {
+            botIds: [...gc.botIds, waBot._id],
+          })
+        }
       }
     }
 

@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
 import { formatDistanceToNowStrict } from "date-fns"
@@ -74,6 +75,21 @@ export function AppSidebar() {
   const createDirectChatMut = useMutation(api.teammates.createDirectChat)
   const clearChatMut = useMutation(api.teammates.clearChatMessages)
   const deleteChatMut = useMutation(api.teammates.deleteChat)
+  const ensureFleetMut = useMutation(api.teammates.ensureWorkspaceFleet)
+
+  React.useEffect(() => {
+    if (data) {
+      const hasWaBot = bots.some(
+        (b) => b.name.includes("WhatsApp") || b.name.includes("Fame")
+      )
+      const hasWaTeam = chats.some(
+        (c) => c.kind === "group" && (c.name.includes("WhatsApp") || c.name.includes("Fame"))
+      )
+      if (!hasWaBot || !hasWaTeam || bots.length < 6) {
+        ensureFleetMut({}).catch(() => {})
+      }
+    }
+  }, [data, bots, chats, ensureFleetMut])
 
   const handleCreateNewChat = async (botId: string, botName: string) => {
     try {

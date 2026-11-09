@@ -1,9 +1,9 @@
 "use client"
 
-import { use } from "react"
+import { use, useEffect } from "react"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
-import { useQuery } from "convex/react"
+import { useQuery, useMutation } from "convex/react"
 
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
@@ -28,6 +28,18 @@ export default function ChatPage({
   const data = useQuery(api.teammates.getChat, {
     chatId: chatId as Id<"teammate_chats">,
   })
+  const ensureFleetMut = useMutation(api.teammates.ensureWorkspaceFleet)
+
+  useEffect(() => {
+    if (data) {
+      const hasWaBot = data.allUserBots?.some(
+        (b) => b.name.includes("WhatsApp") || b.name.includes("Fame")
+      )
+      if (!hasWaBot || (data.allUserBots?.length ?? 0) < 6) {
+        ensureFleetMut({}).catch(() => {})
+      }
+    }
+  }, [data, ensureFleetMut])
 
   if (data === undefined) {
     return (

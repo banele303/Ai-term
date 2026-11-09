@@ -337,6 +337,9 @@ export function DesktopPanel({
   const initialSubView: ActionSubView = React.useMemo(() => {
     const n = name.toLowerCase()
     const j = (job || "").toLowerCase()
+    if (n.includes("fame") || n.includes("whatsapp") || j.includes("whatsapp") || j.includes("client")) {
+      return "aerocomm"
+    }
     if (n.includes("quote") || n.includes("craft") || j.includes("quote") || j.includes("pdf") || j.includes("estimator")) {
       return "quotecraft"
     }

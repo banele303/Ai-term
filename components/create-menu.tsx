@@ -57,7 +57,7 @@ function CreateMenu({ bots }: { bots: { id: string; name: string; avatar: string
         <DropdownMenuContent align="end" className="w-56">
           {bots.length > 0 && (
             <>
-              {bots.slice(0, 3).map((bot) => (
+              {bots.map((bot) => (
                 <DropdownMenuItem
                   key={bot.id}
                   className="cursor-pointer gap-2"

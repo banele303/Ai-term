@@ -108,7 +108,12 @@ export function Chat({
     const text = input.text.trim()
     if (!text || isWorking) return
 
-    const targetBot = currentBot
+    // Auto-route to WhatsApp Executive if the inquiry asks about WhatsApp or clients in a team
+    const isWhatsAppMention = /whatsapp|whapi|autofame|dossier|fica|client/i.test(text)
+    const waBotInTeam = activeBots.find(
+      (b) => b.name.includes("WhatsApp") || b.name.includes("Fame")
+    )
+    const targetBot = (isWhatsAppMention && waBotInTeam && activeBots.length > 1) ? waBotInTeam : currentBot
     if (!targetBot) {
       toast.add({ type: "error", title: "No bot selected to answer" })
       return
