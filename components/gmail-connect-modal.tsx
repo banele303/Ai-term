@@ -96,18 +96,13 @@ export function GmailConnectModal({
     }
   }, [open, runSync])
 
-  // Notify when Gmail transitions from disconnected/initiated -> active
+  // Clear awaiting popup state when Gmail is active
   React.useEffect(() => {
-    if (!wasActiveRef.current && isGmailActive) {
+    if (isGmailActive) {
       setIsAwaitingPopup(false)
-      toast.add({
-        type: "success",
-        title: "Google account connected",
-        description: `${formatGoogleAccountLabel(gmailConnection?.accountLabel)} is now linked.`,
-      })
     }
     wasActiveRef.current = isGmailActive
-  }, [isGmailActive, gmailConnection?.accountLabel])
+  }, [isGmailActive])
 
   // Listen for OAuth popup completion and poll while popup is open
   React.useEffect(() => {

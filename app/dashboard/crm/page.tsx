@@ -1,1425 +1,2022 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Link from "next/link"
-import { useMutation, useQuery } from "convex/react"
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import Link from "next/link";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import {
-  ArrowLeft,
-  Building2,
-  Calendar,
-  Car,
-  Check,
-  CheckCircle2,
-  ChevronRight,
-  Clock,
-  Copy,
-  ExternalLink,
-  Flame,
-  LayoutGrid,
-  List,
+  Briefcase,
+  PhoneCall,
   Mail,
-  MessageCircle,
-  MessageSquare,
-  Package,
-  Phone,
-  Plus,
-  RefreshCw,
+  Building2,
+  Car,
+  FileText,
+  Send,
   Search,
-  Share2,
-  ShieldCheck,
-  Sparkles,
-  Store,
-  Tag,
-  Trash2,
-  TrendingUp,
-  Trophy,
-  User,
-  Users,
-  Wallet,
-  Wrench,
+  RefreshCw,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  ArrowLeft,
+  Upload,
+  ChevronRight,
+  ChevronLeft,
+  LayoutGrid,
+  Table as TableIcon,
+  MessageSquare,
+  UserPlus,
   X,
-  Zap,
-} from "lucide-react"
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { toast } from "@/lib/sonner";
+import PipelineBoard from "./PipelineBoard";
 
-import { useConvexReady } from "@/components/autopulse/convex-provider"
-import {
-  FALLBACK_PIPELINE,
-  FALLBACK_TIMELINE,
-} from "@/components/autopulse/fallback-data"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
-import { toast } from "@/components/ui/toast"
-import { api } from "@/convex/_generated/api"
-import type { Id } from "@/convex/_generated/dataModel"
-import { cn } from "@/lib/utils"
+type PipelineStage =
+  | "NEW_LEAD"
+  | "CONTACTED"
+  | "QUOTE_SENT"
+  | "FINANCE_APP"
+  | "BANK_SUBMITTED"
+  | "CLOSED_WON";
 
-// ---------------------------------------------------------------------------
-// Stages matching video layout (NEW LEAD, CONTACTED, QUOTE SENT, FINANCE DOSSIER, SUBMITTED)
-// ---------------------------------------------------------------------------
-export type StageKey =
-  | "new_rfq"
-  | "fitment_verified"
-  | "quoted"
-  | "awaiting_payment"
-  | "paid"
-  | "dispatched"
-
-export interface CrmStageConfig {
-  key: StageKey
-  label: string
-  dotColor: string
-  ringColor: string
-  textColor: string
-  subtotalLabel?: string
-}
-
-export const CRM_STAGES: CrmStageConfig[] = [
+const PIPELINE_STAGES: {
+  id: PipelineStage;
+  label: string;
+  shortLabel: string;
+  badgeClass: string;
+  dotClass: string;
+}[] = [
   {
-    key: "new_rfq",
-    label: "NEW LEAD",
-    dotColor: "bg-sky-400",
-    ringColor: "ring-sky-500/25",
-    textColor: "text-sky-300",
+    id: "NEW_LEAD",
+    label: "New Lead",
+    shortLabel: "Lead",
+    badgeClass: "bg-sky-500/15 text-sky-300 border-sky-500/30",
+    dotClass: "bg-sky-400",
   },
   {
-    key: "fitment_verified",
-    label: "CONTACTED",
-    dotColor: "bg-emerald-400",
-    ringColor: "ring-emerald-500/25",
-    textColor: "text-emerald-300",
+    id: "CONTACTED",
+    label: "Contacted",
+    shortLabel: "Contacted",
+    badgeClass: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+    dotClass: "bg-emerald-400",
   },
   {
-    key: "quoted",
-    label: "QUOTE SENT",
-    dotColor: "bg-purple-400",
-    ringColor: "ring-purple-500/25",
-    textColor: "text-purple-300",
+    id: "QUOTE_SENT",
+    label: "Quote Sent",
+    shortLabel: "Quoted",
+    badgeClass: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
+    dotClass: "bg-indigo-400",
   },
   {
-    key: "awaiting_payment",
-    label: "FINANCE DOSSIER",
-    dotColor: "bg-amber-400",
-    ringColor: "ring-amber-500/25",
-    textColor: "text-amber-300",
+    id: "FINANCE_APP",
+    label: "Finance Dossier",
+    shortLabel: "Finance",
+    badgeClass: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+    dotClass: "bg-amber-400",
   },
   {
-    key: "paid",
-    label: "SUBMITTED",
-    dotColor: "bg-rose-400",
-    ringColor: "ring-rose-500/25",
-    textColor: "text-rose-300",
+    id: "BANK_SUBMITTED",
+    label: "Submitted to Bank",
+    shortLabel: "At Bank",
+    badgeClass: "bg-purple-500/15 text-purple-300 border-purple-500/30",
+    dotClass: "bg-purple-400",
   },
   {
-    key: "dispatched",
-    label: "WON / DISPATCHED",
-    dotColor: "bg-teal-400",
-    ringColor: "ring-teal-500/25",
-    textColor: "text-teal-300",
+    id: "CLOSED_WON",
+    label: "Closed Won",
+    shortLabel: "Won",
+    badgeClass: "bg-emerald-600/25 text-emerald-200 border-emerald-400/50",
+    dotClass: "bg-emerald-300",
   },
-]
+];
 
-export type Temperature = "all" | "hot" | "warm" | "normal"
+const FICA_DOCUMENT_TYPES = [
+  { code: "ID_COPY", label: "SA ID Copy (Smart ID / Book)" },
+  { code: "DRIVERS_LICENSE", label: "Valid SA Driver's License" },
+  { code: "BANK_STATEMENTS", label: "3 Months Stamped Bank Statements" },
+  { code: "PAYSLIPS", label: "Latest 3 Months Payslips" },
+  { code: "PROOF_OF_ADDRESS", label: "Proof of Residence (< 3 Months)" },
+];
 
-export interface NormalizedDeal {
-  _id: string
-  contactId: string
-  channel: string
-  status: StageKey
-  totalAmount: number
-  coreDepositTotal?: number
-  currency: string
-  paymentLink?: string
-  temperature: "hot" | "warm" | "normal"
-  updatedAt: number
-  vinNumber?: string
-  notes?: string
-  vehicle?: {
-    make?: string
-    model?: string
-    year?: number
-    engineCode?: string
-  }
-  requestedParts?: Array<{
-    partId?: string
-    sku?: string
-    description: string
-    quantity: number
-    unitPrice?: number
-    coreDeposit?: number
-  }>
-  contact?: {
-    _id?: string
-    name: string
-    companyName?: string
-    type?: "workshop_b2b" | "retail_b2c"
-    phone: string
-    email?: string
-    autopilot?: boolean
-    leadScore?: number
-  }
-}
+const BANK_OPTIONS = [
+  { label: "WesBank Vehicle Finance", email: "applications@wesbank.co.za" },
+  { label: "MFC (Nedbank Motor Finance)", email: "mfc@nedbank.co.za" },
+  { label: "Absa Vehicle & Asset Finance", email: "vehiclefinance@absa.co.za" },
+  { label: "Standard Bank Stannic", email: "stannic@standardbank.co.za" },
+  { label: "Capitec Business / Asset Finance", email: "business@capitecbank.co.za" },
+  { label: "AutoFame Desk Copy (alexsouthflow3@gmail.com)", email: "alexsouthflow3@gmail.com" },
+];
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-function formatZar(amount: number) {
-  if (!amount || amount === 0) return "R0"
-  if (amount >= 1_000_000) {
-    const val = amount / 1_000_000
-    return `R${val >= 10 ? val.toFixed(0) : val.toFixed(1)}M`
-  }
-  if (amount >= 100_000) {
-    return `R${Math.round(amount).toLocaleString("en-ZA")}`
-  }
-  if (amount >= 1_000) {
-    return `R${Math.round(amount).toLocaleString("en-ZA")}`
-  }
-  return `R${amount.toFixed(0)}`
-}
+export default function DealershipCrmPage() {
+  // ── 1. CONVEX FULL-STACK QUERIES & MUTATIONS ──
+  const crmWorkspace = useQuery(api.crm.getCrmWorkspace);
+  const upsertCrmContact = useMutation(api.crm.upsertCrmContact);
+  const saveFinanceApplication = useMutation(api.agent.saveFinanceApplicationFromChat);
+  const generateUploadUrl = useMutation(api.agent.generateUploadUrl);
+  const resolveStorageUrl = useMutation(api.agent.resolveStorageUrl);
+  const logCrmEvent = useMutation(api.agent.logCrmEvent);
 
-function getInitials(name: string): string {
-  if (!name) return "AP"
-  const clean = name.replace(/[^\w\s]/gi, "").trim()
-  const parts = clean.split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return "AP"
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-  return (parts[0][0] + parts[1][0]).toUpperCase()
-}
+  const realCars = useMemo(() => crmWorkspace?.cars || [], [crmWorkspace?.cars]);
+  const convexCrmContacts = useMemo(
+    () => crmWorkspace?.crmContacts || [],
+    [crmWorkspace?.crmContacts]
+  );
 
-function timeAgo(timestamp: number) {
-  const diffSec = Math.floor((Date.now() - timestamp) / 1000)
-  if (diffSec < 60) return "Just Now"
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`
-  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`
-  return `${Math.floor(diffSec / 86400)}d ago`
-}
+  // ── 2. UI NAVIGATION & ZERO-SCROLL PAGINATION STATE ──
+  const [waSyncedContacts, setWaSyncedContacts] = useState<any[]>([]);
+  const [customLocalContacts, setCustomLocalContacts] = useState<any[]>([]);
+  const [activeView, setActiveView] = useState<"inbox" | "pipeline" | "directory">("inbox");
+  const [workspaceTab, setWorkspaceTab] = useState<"chat" | "dossier">("chat");
+  const [contactFilter, setContactFilter] = useState<"recent" | "all" | "finance">("recent");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedContactKey, setSelectedContactKey] = useState<string>("");
 
-export default function AutoPulseCrmPage() {
-  const convexReady = useConvexReady()
+  // Zero-scroll pagination for left contact sidebar & directory table
+  const [sidebarPage, setSidebarPage] = useState(0);
+  const [directoryPage, setDirectoryPage] = useState(0);
+  const SIDEBAR_PAGE_SIZE = 8;
+  const DIRECTORY_PAGE_SIZE = 9;
 
-  // Convex Queries & Mutations
-  const livePipeline = useQuery(api.crm.pipeline, convexReady ? {} : "skip")
-  const moveDealMutation = useMutation(api.crm.moveDeal)
-  const createLeadMutation = useMutation(api.crm.createInboundLead)
+  // Add Contact Modal
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addPhone, setAddPhone] = useState("");
+  const [addEmail, setAddEmail] = useState("");
+  const [addStage, setAddStage] = useState<PipelineStage>("CONTACTED");
+  const [addCarId, setAddCarId] = useState<number | undefined>(undefined);
+  const [addNotes, setAddNotes] = useState("");
 
-  // Local View States
-  const [activeTab, setActiveTab] = React.useState<"pipeline" | "directory">("pipeline")
-  const [viewMode, setViewMode] = React.useState<"board" | "list">("board")
-  const [searchQuery, setSearchQuery] = React.useState("")
-  const [temperatureFilter, setTemperatureFilter] = React.useState<Temperature>("all")
-  const [showWonStage, setShowWonStage] = React.useState(false)
+  // Omnichannel Message Composer
+  const [composerChannel, setComposerChannel] = useState<"whatsapp" | "email">("whatsapp");
+  const [composerText, setComposerText] = useState("");
+  const [emailSubject, setEmailSubject] = useState(
+    "AutoFame Dealership Johannesburg South — Official Quotation & Finance"
+  );
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [contactChatHistory, setContactChatHistory] = useState<
+    Record<string, { id: string; sender: string; text: string; time: string; fromMe: boolean }[]>
+  >({});
 
-  // Drawer & Dialog State
-  const [selectedDeal, setSelectedDeal] = React.useState<NormalizedDeal | null>(null)
-  const [isContactDialogOpen, setIsContactDialogOpen] = React.useState(false)
-  const [isSyncing, setIsSyncing] = React.useState(false)
+  // Customer 360 Finance Application Dossier & Bank Dispatch
+  const [finFirstName, setFinFirstName] = useState("");
+  const [finLastName, setFinLastName] = useState("");
+  const [finIdNumber, setFinIdNumber] = useState("");
+  const [finPhone, setFinPhone] = useState("");
+  const [finEmail, setFinEmail] = useState("");
+  const [finAddress, setFinAddress] = useState("Johannesburg, Gauteng");
+  const [finEmployerName, setFinEmployerName] = useState("");
+  const [finJobTitle, setFinJobTitle] = useState("");
+  const [finMonthlyIncome, setFinMonthlyIncome] = useState<number>(0);
+  const [finMonthlyExpenses, setFinMonthlyExpenses] = useState<number>(0);
+  const [finCarId, setFinCarId] = useState<number | undefined>(undefined);
+  const [finCarName, setFinCarName] = useState("");
+  const [finCarPrice, setFinCarPrice] = useState<number>(0);
+  const [finDeposit, setFinDeposit] = useState<number>(0);
+  const [finTermMonths] = useState<number>(72);
+  const [finNotes, setFinNotes] = useState("");
+  const [finProofDocs, setFinProofDocs] = useState<
+    Record<
+      string,
+      {
+        docType: string;
+        originalName: string;
+        mime: string;
+        size: number;
+        url: string;
+      }
+    >
+  >({});
+  const [bankRecipientEmail, setBankRecipientEmail] = useState("applications@wesbank.co.za");
+  const [activeDocUploadCode, setActiveDocUploadCode] = useState<string>("ID_COPY");
+  const proofDocInputRef = useRef<HTMLInputElement>(null);
 
-  // Drag and Drop state
-  const [draggingDealId, setDraggingDealId] = React.useState<string | null>(null)
-  const [dragOverStage, setDragOverStage] = React.useState<StageKey | null>(null)
+  const fetchWhatsAppDirectory = async () => {
+    try {
+      const res = await fetch("/api/whatsapp?action=messages");
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.contacts)) {
+        setWaSyncedContacts(data.contacts);
+      }
+    } catch {}
+  };
 
-  // Local overrides for optimistic moves
-  const [localStageOverrides, setLocalStageOverrides] = React.useState<Record<string, StageKey>>({})
+  useEffect(() => {
+    fetchWhatsAppDirectory();
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("autofame_custom_wa_contacts");
+        if (raw) setCustomLocalContacts(JSON.parse(raw));
+      } catch {}
+    }
+  }, []);
 
-  // Form state for + Contact modal
-  const [newLeadForm, setNewLeadForm] = React.useState({
-    clientName: "",
-    clientPhone: "+27 ",
-    clientEmail: "",
-    companyName: "",
-    vehicleMake: "",
-    vehicleModel: "",
-    vehicleYear: "2020",
-    vinNumber: "",
-    partDescription: "",
-    estimatedAmount: "129900",
-    stage: "new_rfq" as StageKey,
-    temperature: "hot" as "hot" | "warm" | "normal",
-  })
-  const [isSubmittingLead, setIsSubmittingLead] = React.useState(false)
+  // Merge Convex CRM contacts + Custom Local Contacts + Synced Whapi Contacts
+  const masterContacts = useMemo(() => {
+    const map = new Map<string, any>();
 
-  // -------------------------------------------------------------------------
-  // Process Pipeline Deals (combines Convex live data with realistic fallback)
-  // -------------------------------------------------------------------------
-  const rawDeals = React.useMemo(() => {
-    const list: NormalizedDeal[] = []
-    const sourceData = (livePipeline && livePipeline.length > 0)
-      ? livePipeline
-      : FALLBACK_PIPELINE
+    waSyncedContacts.forEach((c, idx) => {
+      const key = String(c.id || c.phone).replace(/\D/g, "") || c.id;
+      const defaultStage: PipelineStage =
+        c.name?.includes("Martha") || c.lastMessage?.includes("Bank:")
+          ? "FINANCE_APP"
+          : c.lastMessage?.includes("cost how much")
+          ? "QUOTE_SENT"
+          : c.isRecentChat
+          ? "CONTACTED"
+          : "NEW_LEAD";
 
-    sourceData.forEach((col: any) => {
-      const colStatus = col.status as StageKey
-      col.deals?.forEach((d: any, idx: number) => {
-        // Derive temperature if not explicitly set
-        let temp: "hot" | "warm" | "normal" = d.temperature || "normal"
-        if (!d.temperature) {
-          if (idx % 3 === 0 || d.totalAmount > 100000) temp = "hot"
-          else if (idx % 2 === 0) temp = "warm"
-        }
+      map.set(key, {
+        contactKey: key,
+        chatId: c.chatId || `${key}@s.whatsapp.net`,
+        name: c.name || c.phone,
+        phone: c.phone || `+${key}`,
+        email: "",
+        idNumber: "",
+        address: "Johannesburg, Gauteng",
+        employerName: c.name?.includes("Martha")
+          ? "West Bulk Bags (Capitec: 2558165883)"
+          : "",
+        jobTitle: "",
+        monthlyIncomeGross: 0,
+        monthlyExpenses: 0,
+        stage: defaultStage,
+        priority: c.isRecentChat ? "HOT" : "NORMAL",
+        source: "WHATSAPP",
+        assignedCarId: realCars[idx % Math.max(realCars.length, 1)]?.id,
+        assignedCarName: realCars[idx % Math.max(realCars.length, 1)]
+          ? `${realCars[idx % realCars.length].year} ${realCars[idx % realCars.length].make} ${
+              realCars[idx % realCars.length].model
+            }`
+          : "2024 Toyota Rumion 1.5 SX Auto",
+        dealValueZar: realCars[idx % Math.max(realCars.length, 1)]?.price || 249900,
+        depositZar: Math.round(
+          (realCars[idx % Math.max(realCars.length, 1)]?.price || 249900) * 0.1
+        ),
+        lastMessage: c.lastMessage || "Saved WhatsApp Contact",
+        lastContactedLabel: c.lastContactedLabel || (c.isRecentChat ? "Recent" : "Phonebook"),
+        lastContactedAt: c.timestamp || "2026-10-18T08:00:00.000Z",
+        isRecentChat: Boolean(c.isRecentChat || c.lastContactedLabel),
+        notes: "",
+        ficaDocsCount: 0,
+        sortOrder: idx,
+      });
+    });
 
-        list.push({
-          _id: String(d._id),
-          contactId: String(d.contactId || `c_${idx}`),
-          channel: d.channel || "whatsapp",
-          status: (localStageOverrides[String(d._id)] || colStatus || "new_rfq") as StageKey,
-          totalAmount: Number(d.totalAmount) || 0,
-          coreDepositTotal: Number(d.coreDepositTotal) || 0,
-          currency: d.currency || "ZAR",
-          paymentLink: d.paymentLink,
-          temperature: temp,
-          updatedAt: d.updatedAt || Date.now() - idx * 300_000,
-          vinNumber: d.vinNumber,
-          notes: d.notes,
-          vehicle: d.vehicle || {
-            make: "Hyundai",
-            model: "H-100",
-            year: 2016,
-          },
-          requestedParts: d.requestedParts || [
-            {
-              description: "2016 HYUNDAI H-100 · Bakkie Engine & Clutch",
-              quantity: 1,
-              unitPrice: d.totalAmount || 129900,
-            },
-          ],
-          contact: d.contact || {
-            name: "Customer Lead",
-            phone: "+27 76 073 7452",
-            type: "retail_b2c",
-            autopilot: true,
-          },
-        })
-      })
-    })
+    customLocalContacts.forEach((c) => {
+      const key = String(c.id || c.phone).replace(/\D/g, "") || c.id;
+      const existing = map.get(key) || {};
+      map.set(key, {
+        ...existing,
+        contactKey: key,
+        chatId: c.chatId || `${key}@s.whatsapp.net`,
+        name: c.name || existing.name || c.phone,
+        phone: c.phone || existing.phone || `+${key}`,
+        stage: c.stage || existing.stage || "CONTACTED",
+        priority: "HOT",
+        source: "WHATSAPP",
+        lastMessage: c.lastMessage || existing.lastMessage || "Added Contact",
+        lastContactedLabel: c.lastContactedLabel || "Just Added",
+        lastContactedAt: c.timestamp || new Date().toISOString(),
+        isRecentChat: true,
+        sortOrder: -10,
+      });
+    });
 
-    return list
-  }, [livePipeline, localStageOverrides])
+    convexCrmContacts.forEach((c: any) => {
+      const key = c.contactKey;
+      const existing = map.get(key) || {};
+      const validStage = PIPELINE_STAGES.some((s) => s.id === c.stage)
+        ? c.stage
+        : "FINANCE_APP";
+      map.set(key, {
+        ...existing,
+        ...c,
+        stage: validStage,
+        isRecentChat: c.isRecentChat ?? existing.isRecentChat ?? true,
+        sortOrder: -20,
+      });
+    });
 
-  // Filtered deals
-  const filteredDeals = React.useMemo(() => {
-    let result = rawDeals
+    const list = Array.from(map.values());
+    list.sort((a, b) => {
+      if (a.isRecentChat && !b.isRecentChat) return -1;
+      if (!a.isRecentChat && b.isRecentChat) return 1;
+      if (a.isRecentChat && b.isRecentChat) {
+        return String(b.lastContactedAt || "").localeCompare(String(a.lastContactedAt || ""));
+      }
+      return (a.sortOrder ?? 999) - (b.sortOrder ?? 999);
+    });
 
-    // Search query filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim()
-      result = result.filter((deal) => {
-        const contactName = deal.contact?.name?.toLowerCase() || ""
-        const phone = deal.contact?.phone?.toLowerCase() || ""
-        const company = deal.contact?.companyName?.toLowerCase() || ""
-        const veh = `${deal.vehicle?.year || ""} ${deal.vehicle?.make || ""} ${deal.vehicle?.model || ""}`.toLowerCase()
-        const vin = deal.vinNumber?.toLowerCase() || ""
-        const part = deal.requestedParts?.map((p) => p.description).join(" ").toLowerCase() || ""
+    return list;
+  }, [waSyncedContacts, customLocalContacts, convexCrmContacts, realCars]);
+
+  useEffect(() => {
+    if (!selectedContactKey && masterContacts.length > 0) {
+      const preferred =
+        masterContacts.find((c) => c.name?.includes("Martha")) ||
+        masterContacts[1] ||
+        masterContacts[0];
+      if (preferred) {
+        handleSelectContact(preferred);
+      }
+    }
+  }, [masterContacts, selectedContactKey]);
+
+  const selectedContact = useMemo(
+    () =>
+      masterContacts.find((c) => c.contactKey === selectedContactKey) ||
+      masterContacts[0] ||
+      null,
+    [masterContacts, selectedContactKey]
+  );
+
+  const handleSelectContact = (contact: any) => {
+    if (!contact) return;
+    setSelectedContactKey(contact.contactKey);
+    const cleanName = String(contact.name || "")
+      .replace(/\(.*?\)/g, "")
+      .trim();
+    const parts = cleanName.split(/\s+/);
+    const first = parts[0] || "Client";
+    const last = parts.slice(1).join(" ") || "";
+
+    setFinFirstName(first);
+    setFinLastName(last);
+    setFinPhone(contact.phone || "");
+    setFinEmail(contact.email || "");
+    setFinIdNumber(contact.idNumber || "");
+    setFinAddress(contact.address || "Johannesburg, Gauteng");
+    setFinEmployerName(contact.employerName || "");
+    setFinJobTitle(contact.jobTitle || "");
+    setFinMonthlyIncome(contact.monthlyIncomeGross || 0);
+    setFinMonthlyExpenses(contact.monthlyExpenses || 0);
+
+    const assignedCar =
+      realCars.find((c: any) => c.id === contact.assignedCarId) || realCars[0];
+    const carLabel =
+      contact.assignedCarName ||
+      (assignedCar
+        ? `${assignedCar.year} ${assignedCar.make} ${assignedCar.model}`
+        : "2024 Toyota Rumion 1.5 SX Auto");
+    const carPrice = Number(contact.dealValueZar || assignedCar?.price || 249900);
+
+    setFinCarId(assignedCar?.id);
+    setFinCarName(carLabel);
+    setFinCarPrice(carPrice);
+    setFinDeposit(Number(contact.depositZar || Math.round(carPrice * 0.1)));
+    setFinNotes(contact.notes || "");
+
+    setComposerText(
+      `Hi ${first}, this is AutoFame Dealership Johannesburg South (+27 63 199 5124). Following up regarding the ${carLabel} (R${carPrice.toLocaleString()} ZAR). Would you like us to send the official quotation or open your vehicle finance application?`
+    );
+  };
+
+  const filteredContacts = useMemo(() => {
+    return masterContacts.filter((c) => {
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
         return (
-          contactName.includes(q) ||
-          phone.includes(q) ||
-          company.includes(q) ||
-          veh.includes(q) ||
-          vin.includes(q) ||
-          part.includes(q)
-        )
-      })
-    }
-
-    // Temperature filter
-    if (temperatureFilter !== "all") {
-      result = result.filter((deal) => deal.temperature === temperatureFilter)
-    }
-
-    return result
-  }, [rawDeals, searchQuery, temperatureFilter])
-
-  // Metrics computation
-  const metrics = React.useMemo(() => {
-    const openDeals = rawDeals.filter((d) => d.status !== "paid" && d.status !== "dispatched")
-    const wonDeals = rawDeals.filter((d) => d.status === "paid" || d.status === "dispatched")
-
-    const openPipelineValue = openDeals.reduce((sum, d) => sum + (d.totalAmount || 0), 0)
-    const wonPipelineValue = wonDeals.reduce((sum, d) => sum + (d.totalAmount || 0), 0)
-    const totalDealsCount = rawDeals.length
-    const winRate = totalDealsCount > 0 ? Math.round((wonDeals.length / totalDealsCount) * 100) : 1
-
-    return {
-      openPipelineValue,
-      openDealsCount: openDeals.length,
-      wonPipelineValue,
-      wonDealsCount: wonDeals.length,
-      winRate: Math.max(1, winRate),
-      totalContactsCount: new Set(rawDeals.map((d) => d.contact?.phone || d.contact?.name)).size,
-      totalVehiclesCount: rawDeals.filter((d) => d.vehicle?.make).length,
-    }
-  }, [rawDeals])
-
-  // Move deal function (used by drag-and-drop & 1-click stage dots)
-  const handleMoveDeal = React.useCallback(
-    async (dealId: string, newStage: StageKey) => {
-      // Optimistic update
-      setLocalStageOverrides((prev) => ({ ...prev, [dealId]: newStage }))
-      if (selectedDeal && selectedDeal._id === dealId) {
-        setSelectedDeal((prev) => (prev ? { ...prev, status: newStage } : null))
+          c.name?.toLowerCase().includes(q) ||
+          c.phone?.toLowerCase().includes(q) ||
+          c.lastMessage?.toLowerCase().includes(q) ||
+          c.assignedCarName?.toLowerCase().includes(q)
+        );
       }
+      if (contactFilter === "recent") return Boolean(c.isRecentChat);
+      if (contactFilter === "finance")
+        return c.stage === "FINANCE_APP" || c.stage === "BANK_SUBMITTED";
+      return true;
+    });
+  }, [masterContacts, searchQuery, contactFilter]);
 
-      const targetConfig = CRM_STAGES.find((s) => s.key === newStage)
-      toast.add({
-        title: "Stage Updated",
-        description: `Deal moved to ${targetConfig?.label || newStage}`,
-      })
+  useEffect(() => {
+    setSidebarPage(0);
+    setDirectoryPage(0);
+  }, [searchQuery, contactFilter]);
 
-      if (convexReady) {
-        try {
-          await moveDealMutation({
-            dealId: dealId as Id<"deals_and_quotes">,
-            status: newStage as any,
-          })
-        } catch {
-          // Keep optimistic local state
-        }
-      }
-    },
-    [convexReady, moveDealMutation, selectedDeal]
-  )
+  const totalSidebarPages = Math.max(
+    1,
+    Math.ceil(filteredContacts.length / SIDEBAR_PAGE_SIZE)
+  );
+  const pagedSidebarContacts = filteredContacts.slice(
+    sidebarPage * SIDEBAR_PAGE_SIZE,
+    (sidebarPage + 1) * SIDEBAR_PAGE_SIZE
+  );
 
-  // Drag and Drop handlers
-  const handleDragStart = (e: React.DragEvent, dealId: string) => {
-    e.dataTransfer.setData("text/plain", dealId)
-    e.dataTransfer.effectAllowed = "move"
-    setDraggingDealId(dealId)
-  }
+  const totalDirectoryPages = Math.max(
+    1,
+    Math.ceil(filteredContacts.length / DIRECTORY_PAGE_SIZE)
+  );
+  const pagedDirectoryContacts = filteredContacts.slice(
+    directoryPage * DIRECTORY_PAGE_SIZE,
+    (directoryPage + 1) * DIRECTORY_PAGE_SIZE
+  );
 
-  const handleDragEnd = () => {
-    setDraggingDealId(null)
-    setDragOverStage(null)
-  }
-
-  const handleDragOverColumn = (e: React.DragEvent, stageKey: StageKey) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = "move"
-    if (dragOverStage !== stageKey) {
-      setDragOverStage(stageKey)
+  const handleCreateContact = async () => {
+    if (!addPhone.trim()) {
+      toast.error("Please enter a WhatsApp / phone number.");
+      return;
     }
-  }
-
-  const handleDropColumn = (e: React.DragEvent, stageKey: StageKey) => {
-    e.preventDefault()
-    const dealId = e.dataTransfer.getData("text/plain") || draggingDealId
-    if (dealId) {
-      handleMoveDeal(dealId, stageKey)
-    }
-    setDraggingDealId(null)
-    setDragOverStage(null)
-  }
-
-  // Handle Sync button
-  const handleSync = () => {
-    setIsSyncing(true)
-    setTimeout(() => {
-      setIsSyncing(false)
-      toast.add({
-        title: "CRM Pipeline Synchronized",
-        description: "Live contacts, WhatsApp RFQs, and vehicle fitment updated.",
-      })
-    }, 600)
-  }
-
-  // Handle Create Lead Submit
-  const handleCreateLead = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newLeadForm.clientName.trim()) {
-      toast.add({ title: "Name required", description: "Please enter the customer name." })
-      return
-    }
-
-    setIsSubmittingLead(true)
-    const amount = parseFloat(newLeadForm.estimatedAmount) || 0
+    const cleanDigits = addPhone.replace(/\D/g, "");
+    const normalizedKey =
+      cleanDigits.startsWith("0") && cleanDigits.length === 10
+        ? "27" + cleanDigits.slice(1)
+        : cleanDigits;
+    const displayPhone = addPhone.startsWith("+")
+      ? addPhone.trim()
+      : `+${normalizedKey}`;
+    const chosenCar = realCars.find((c: any) => c.id === addCarId) || realCars[0];
+    const carName = chosenCar
+      ? `${chosenCar.year} ${chosenCar.make} ${chosenCar.model}`
+      : "Selected Vehicle";
+    const carPrice = chosenCar?.price || 249900;
 
     try {
-      if (convexReady) {
-        await createLeadMutation({
-          clientName: newLeadForm.clientName.trim(),
-          clientPhone: newLeadForm.clientPhone.trim(),
-          clientEmail: newLeadForm.clientEmail.trim() || undefined,
-          companyName: newLeadForm.companyName.trim() || undefined,
-          channel: "whatsapp",
-          vehicleMake: newLeadForm.vehicleMake.trim() || undefined,
-          vehicleModel: newLeadForm.vehicleModel.trim() || undefined,
-          vehicleYear: parseInt(newLeadForm.vehicleYear) || undefined,
-          vinNumber: newLeadForm.vinNumber.trim() || undefined,
-          partDescription: newLeadForm.partDescription.trim() || "Vehicle Parts Inquiry",
-          estimatedAmount: amount,
-          initialStatus: newLeadForm.stage as any,
-        })
-      } else {
-        // Local insertion
-        const mockId = `deal_local_${Date.now()}`
-        setLocalStageOverrides((prev) => ({ ...prev, [mockId]: newLeadForm.stage }))
+      await fetch("/api/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "add_contact",
+          name: addName.trim() || displayPhone,
+          phone: displayPhone,
+          message: addNotes.trim() || `Interested in ${carName}`,
+        }),
+      });
+
+      await upsertCrmContact({
+        contactKey: normalizedKey,
+        chatId: `${normalizedKey}@s.whatsapp.net`,
+        name: addName.trim() || displayPhone,
+        phone: displayPhone,
+        email: addEmail.trim(),
+        stage: addStage,
+        priority: "HOT",
+        source: "WHATSAPP",
+        assignedCarId: chosenCar?.id,
+        assignedCarName: carName,
+        dealValueZar: carPrice,
+        depositZar: Math.round(carPrice * 0.1),
+        lastMessage: addNotes.trim() || `Added to CRM — ${carName}`,
+        lastContactedLabel: "Just Now",
+        lastContactedAt: new Date().toISOString(),
+        isRecentChat: true,
+        notes: addNotes.trim(),
+      });
+
+      const localEntry = {
+        id: normalizedKey,
+        chatId: `${normalizedKey}@s.whatsapp.net`,
+        name: addName.trim() || displayPhone,
+        phone: displayPhone,
+        stage: addStage,
+        lastMessage: addNotes.trim() || `Added to CRM — ${carName}`,
+        lastContactedLabel: "Just Now",
+        timestamp: new Date().toISOString(),
+        isRecentChat: true,
+      };
+      const nextLocal = [
+        localEntry,
+        ...customLocalContacts.filter((c) => c.id !== normalizedKey),
+      ];
+      setCustomLocalContacts(nextLocal);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("autofame_custom_wa_contacts", JSON.stringify(nextLocal));
       }
 
-      toast.add({
-        title: "Contact & Deal Added",
-        description: `${newLeadForm.clientName} added to ${newLeadForm.stage.toUpperCase()}`,
-      })
-      setIsContactDialogOpen(false)
-      setNewLeadForm({
-        clientName: "",
-        clientPhone: "+27 ",
-        clientEmail: "",
-        companyName: "",
-        vehicleMake: "",
-        vehicleModel: "",
-        vehicleYear: "2020",
-        vinNumber: "",
-        partDescription: "",
-        estimatedAmount: "129900",
-        stage: "new_rfq",
-        temperature: "hot",
-      })
+      setSelectedContactKey(normalizedKey);
+      setShowAddModal(false);
+      setAddName("");
+      setAddPhone("");
+      setAddEmail("");
+      setAddNotes("");
+      toast.success(`Saved ${localEntry.name} to AutoFame CRM`);
     } catch (err: any) {
-      toast.add({
-        title: "Lead Created",
-        description: "Lead saved to active CRM session.",
-      })
-      setIsContactDialogOpen(false)
-    } finally {
-      setIsSubmittingLead(false)
+      toast.error(err.message || "Failed to save contact");
     }
-  }
+  };
 
-  // Active stages to show (first 5 by default, 6th if toggled)
-  const visibleStages = React.useMemo(() => {
-    return showWonStage ? CRM_STAGES : CRM_STAGES.slice(0, 5)
-  }, [showWonStage])
+  const handleStageChange = async (contact: any, nextStage: PipelineStage) => {
+    try {
+      await upsertCrmContact({
+        contactKey: contact.contactKey,
+        chatId: contact.chatId,
+        name: contact.name,
+        phone: contact.phone,
+        email: contact.email,
+        stage: nextStage,
+        priority: contact.priority || "HOT",
+        source: contact.source || "WHATSAPP",
+        assignedCarId: contact.assignedCarId,
+        assignedCarName: contact.assignedCarName,
+        dealValueZar: contact.dealValueZar,
+        depositZar: contact.depositZar,
+        lastMessage: contact.lastMessage,
+        lastContactedLabel: contact.lastContactedLabel || "Updated",
+        lastContactedAt: new Date().toISOString(),
+        isRecentChat: true,
+        notes: contact.notes,
+      });
+      toast.success(
+        `Moved ${contact.name} to ${
+          PIPELINE_STAGES.find((s) => s.id === nextStage)?.label || nextStage
+        }`
+      );
+    } catch (err: any) {
+      toast.error(err.message || "Could not update stage");
+    }
+  };
+
+  // Drag & drop pipeline: persist stage + position (fractional pipelineOrder)
+  const handlePipelineMove = async (
+    contact: any,
+    nextStage: string,
+    pipelineOrder: number
+  ) => {
+    const base = {
+      contactKey: contact.contactKey,
+      chatId: contact.chatId,
+      name: contact.name,
+      phone: contact.phone,
+      email: contact.email,
+      stage: nextStage,
+      priority: contact.priority || "HOT",
+      source: contact.source || "WHATSAPP",
+      assignedCarId: contact.assignedCarId,
+      assignedCarName: contact.assignedCarName,
+      dealValueZar: contact.dealValueZar,
+      depositZar: contact.depositZar,
+      lastMessage: contact.lastMessage,
+      lastContactedLabel: contact.lastContactedLabel || "Updated",
+      lastContactedAt: contact.lastContactedAt,
+      isRecentChat: contact.isRecentChat ?? true,
+      notes: contact.notes,
+    };
+    try {
+      await upsertCrmContact({ ...base, pipelineOrder });
+    } catch (err: any) {
+      // Backend not yet redeployed with pipelineOrder support — still persist the stage.
+      if (String(err?.message || "").includes("pipelineOrder")) {
+        await upsertCrmContact(base);
+      } else {
+        throw err;
+      }
+    }
+  };
+
+  const handlePriorityChange = async (contact: any, priority: string) => {
+    await upsertCrmContact({
+      contactKey: contact.contactKey,
+      chatId: contact.chatId,
+      name: contact.name,
+      phone: contact.phone,
+      stage: contact.stage,
+      priority,
+      lastContactedAt: contact.lastContactedAt,
+    });
+  };
+
+  const handleSendOmnichannelMessage = async () => {
+    if (!selectedContact || !composerText.trim()) return;
+    setSendingMessage(true);
+    try {
+      if (composerChannel === "whatsapp") {
+        const res = await fetch("/api/whatsapp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "send",
+            to:
+              selectedContact.chatId === "120363413508068515@g.us"
+                ? selectedContact.chatId
+                : selectedContact.phone,
+            customerName: selectedContact.name,
+            message: composerText.trim(),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "WhatsApp send failed");
+
+        if (data.trialQuotaExceeded && data.waMeUrl && typeof window !== "undefined") {
+          window.open(data.waMeUrl, "_blank", "noopener,noreferrer");
+        }
+
+        setContactChatHistory((prev) => {
+          const list = prev[selectedContact.contactKey] || [];
+          return {
+            ...prev,
+            [selectedContact.contactKey]: [
+              ...list.slice(-1),
+              {
+                id: `msg-${Date.now()}`,
+                sender: "AutoFame Dealership",
+                text: composerText.trim(),
+                time: new Date().toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                fromMe: true,
+              },
+            ],
+          };
+        });
+
+        await upsertCrmContact({
+          contactKey: selectedContact.contactKey,
+          chatId: selectedContact.chatId,
+          name: selectedContact.name,
+          phone: selectedContact.phone,
+          stage:
+            selectedContact.stage === "NEW_LEAD" ? "CONTACTED" : selectedContact.stage,
+          lastMessage: composerText.trim().slice(0, 140),
+          lastContactedLabel: "Just Now",
+          lastContactedAt: new Date().toISOString(),
+          isRecentChat: true,
+        });
+
+        await logCrmEvent({
+          eventType: "WHATSAPP_SENT",
+          recipient: selectedContact.phone,
+          customerName: selectedContact.name,
+          summary: `CRM WhatsApp sent to ${selectedContact.name}`,
+          status: "SUCCESS",
+        });
+
+        toast.success(`Sent WhatsApp message to ${selectedContact.name}`);
+      } else {
+        const targetEmail =
+          finEmail.trim() || selectedContact.email || "alexsouthflow3@gmail.com";
+        const res = await fetch("/api/email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "send",
+            fromEmail: "alexsouthflow3@gmail.com",
+            appPassword: "dmjjjsyxcpqpdwlb",
+            to: targetEmail,
+            subject: emailSubject,
+            body: composerText.trim(),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Email dispatch failed");
+
+        toast.success(`Sent official email to ${targetEmail}`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send message");
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  const handleExtractFromWhatsAppToDossier = async () => {
+    if (!selectedContact) return;
+    try {
+      const res = await fetch("/api/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "extract_contact_and_submit",
+          query: `take all information from ${selectedContact.name} ${selectedContact.phone}`,
+          context: { cars: realCars },
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.intake) {
+        const intake = data.intake;
+        if (intake.firstName) setFinFirstName(intake.firstName);
+        if (intake.lastName) setFinLastName(intake.lastName);
+        if (intake.phone) setFinPhone(intake.phone);
+        if (intake.email) setFinEmail(intake.email);
+        if (intake.idNumber) setFinIdNumber(intake.idNumber);
+        if (intake.employerName) setFinEmployerName(intake.employerName);
+        if (intake.monthlyIncomeGross > 0) setFinMonthlyIncome(intake.monthlyIncomeGross);
+        if (Array.isArray(intake.documents) && intake.documents.length > 0) {
+          setFinProofDocs((prev) => {
+            const next = { ...prev };
+            intake.documents.forEach((d: any) => {
+              next[d.docType] = d;
+            });
+            return next;
+          });
+        }
+        toast.success(`Extracted chat & banking details from ${selectedContact.name}`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Extraction failed");
+    }
+  };
+
+  const handleUploadProofDocument = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const postUrl = await generateUploadUrl();
+      const uploadRes = await fetch(postUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      const { storageId } = await uploadRes.json();
+      const publicUrl = await resolveStorageUrl({ storageId });
+
+      setFinProofDocs((prev) => ({
+        ...prev,
+        [activeDocUploadCode]: {
+          docType: activeDocUploadCode,
+          originalName: file.name,
+          mime: file.type || "application/pdf",
+          size: file.size,
+          url: publicUrl || "",
+        },
+      }));
+      toast.success(`Uploaded ${file.name} (${activeDocUploadCode})`);
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const missingFinanceItems = useMemo(() => {
+    const missing: string[] = [];
+    if (!finFirstName.trim() || !finLastName.trim()) missing.push("Full Name & Surname");
+    if (!finIdNumber.trim()) missing.push("13-Digit SA ID Number");
+    if (!finPhone.trim()) missing.push("WhatsApp / Mobile Number");
+    if (!finCarName.trim() || finCarPrice <= 0) missing.push("Selected Vehicle & Price");
+    if (!finEmployerName.trim()) missing.push("Employer / Business Name");
+    if (finMonthlyIncome <= 0) missing.push("Gross Monthly Income");
+    FICA_DOCUMENT_TYPES.forEach((doc) => {
+      if (!finProofDocs[doc.code]) {
+        missing.push(doc.label);
+      }
+    });
+    return missing;
+  }, [
+    finFirstName,
+    finLastName,
+    finIdNumber,
+    finPhone,
+    finCarName,
+    finCarPrice,
+    finEmployerName,
+    finMonthlyIncome,
+    finProofDocs,
+  ]);
+
+  const handleSaveDossierAndSubmitToBank = async (sendEmailToBank: boolean) => {
+    if (!selectedContact) return;
+    try {
+      const docsArray = Object.values(finProofDocs);
+      await saveFinanceApplication({
+        firstName: finFirstName.trim() || "Client",
+        lastName: finLastName.trim() || "Applicant",
+        email: finEmail.trim() || "client@autofame.co.za",
+        phone: finPhone.trim() || selectedContact.phone,
+        idNumber: finIdNumber.trim(),
+        address: finAddress.trim(),
+        carId: finCarId,
+        carName: finCarName,
+        carPrice: Number(finCarPrice) || 0,
+        downPaymentAmount: Number(finDeposit) || 0,
+        loanAmount: Math.max((Number(finCarPrice) || 0) - (Number(finDeposit) || 0), 0),
+        termMonths: Number(finTermMonths) || 72,
+        employmentStatus: "EMPLOYED",
+        employerName: finEmployerName.trim(),
+        jobTitle: finJobTitle.trim(),
+        monthlyIncomeGross: Number(finMonthlyIncome) || 0,
+        monthlyExpenses: Number(finMonthlyExpenses) || 0,
+        documents: docsArray,
+      });
+
+      const nextStage: PipelineStage = sendEmailToBank ? "BANK_SUBMITTED" : "FINANCE_APP";
+
+      await upsertCrmContact({
+        contactKey: selectedContact.contactKey,
+        chatId: selectedContact.chatId,
+        name: `${finFirstName} ${finLastName}`.trim() || selectedContact.name,
+        phone: finPhone.trim() || selectedContact.phone,
+        email: finEmail.trim(),
+        idNumber: finIdNumber.trim(),
+        address: finAddress.trim(),
+        employerName: finEmployerName.trim(),
+        jobTitle: finJobTitle.trim(),
+        monthlyIncomeGross: Number(finMonthlyIncome) || 0,
+        monthlyExpenses: Number(finMonthlyExpenses) || 0,
+        stage: nextStage,
+        assignedCarId: finCarId,
+        assignedCarName: finCarName,
+        dealValueZar: Number(finCarPrice) || 0,
+        depositZar: Number(finDeposit) || 0,
+        ficaDocsCount: docsArray.length,
+        notes: finNotes,
+        lastContactedLabel: "Just Updated",
+        lastContactedAt: new Date().toISOString(),
+        isRecentChat: true,
+      });
+
+      if (sendEmailToBank) {
+        const loanPrincipal = Math.max(
+          (Number(finCarPrice) || 0) - (Number(finDeposit) || 0),
+          0
+        );
+        const monthlyRate = 0.1175 / 12;
+        const term = Number(finTermMonths) || 72;
+        const estInstalment = Math.round(
+          (loanPrincipal * monthlyRate * Math.pow(1 + monthlyRate, term)) /
+            (Math.pow(1 + monthlyRate, term) - 1)
+        );
+
+        const emailSubjectLine = `OFFICIAL VEHICLE FINANCE APPLICATION — ${finFirstName} ${finLastName} (ID: ${
+          finIdNumber || "Pending"
+        }) — ${finCarName}`;
+        const emailBodyText = `OFFICIAL DEALERSHIP VEHICLE FINANCE APPLICATION DOSSIER
+Submitted by: AutoFame Dealership (1 Rifle Range Rd, Baragwanath, Johannesburg South)
+Channel: WhatsApp Agent (ANTMAN-ZPBZZ) & Dealership CRM
+====================================================================
+
+1. APPLICANT DETAILS
+• Full Name: ${finFirstName} ${finLastName}
+• SA ID Number: ${finIdNumber || "Pending"}
+• Mobile / WhatsApp: ${finPhone}
+• Email Address: ${finEmail || "Provided via WhatsApp"}
+• Physical Address: ${finAddress}
+
+2. VEHICLE & LOAN STRUCTURE
+• Vehicle: ${finCarName}
+• Retail Price: R${Number(finCarPrice).toLocaleString()} ZAR
+• Deposit: R${Number(finDeposit).toLocaleString()} ZAR
+• Principal Loan Amount: R${loanPrincipal.toLocaleString()} ZAR
+• Term & Rate: ${term} Months @ 11.75% Linked (~R${estInstalment.toLocaleString()} ZAR/month)
+
+3. EMPLOYMENT & AFFORDABILITY
+• Employer / Business: ${finEmployerName || "Not Specified"}
+• Occupation: ${finJobTitle || "Not Specified"}
+• Gross Monthly Income: R${Number(finMonthlyIncome).toLocaleString()} ZAR
+• Monthly Expenses: R${Number(finMonthlyExpenses).toLocaleString()} ZAR
+• Net Disposable Income: R${Math.max(
+          Number(finMonthlyIncome) - Number(finMonthlyExpenses),
+          0
+        ).toLocaleString()} ZAR
+
+4. ATTACHED FICA PROOF DOCUMENTS (${docsArray.length}/5)
+${
+  docsArray.length > 0
+    ? docsArray.map((d, i) => `${i + 1}. [${d.docType}] ${d.originalName} — ${d.url}`).join("\n")
+    : "No proof documents attached yet."
+}`;
+
+        const emailRes = await fetch("/api/email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "send",
+            fromEmail: "alexsouthflow3@gmail.com",
+            appPassword: "dmjjjsyxcpqpdwlb",
+            to: bankRecipientEmail,
+            subject: emailSubjectLine,
+            body: emailBodyText,
+            attachments: docsArray.map((d) => ({
+              filename: d.originalName,
+              url: d.url,
+              mime: d.mime,
+            })),
+          }),
+        });
+        const emailData = await emailRes.json();
+        if (!emailRes.ok) {
+          throw new Error(emailData.error || "Bank email dispatch failed");
+        }
+        toast.success(
+          `Dispatched Finance Application & ${docsArray.length} attachment(s) to ${bankRecipientEmail}`
+        );
+      } else {
+        toast.success(`Saved Finance Dossier for ${finFirstName} ${finLastName}`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to process finance dossier");
+    }
+  };
+
+  const recentChatsCount = useMemo(
+    () => masterContacts.filter((c) => c.isRecentChat).length,
+    [masterContacts]
+  );
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden bg-[#0a0d12] text-zinc-100 font-sans selection:bg-emerald-500/30 selection:text-emerald-100">
-      {/* =========================================================================
-          TOP NAV BAR (Header exactly matching video)
-          ========================================================================= */}
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-800/80 bg-[#0d1117] px-4">
-        {/* Left: ← Agent Button + Brand Title & Counts */}
-        <div className="flex items-center gap-3">
+    <div className="h-screen w-screen overflow-hidden flex flex-col bg-[#11100e] text-[#eae7e1] font-sans select-none">
+      <input
+        ref={proofDocInputRef}
+        type="file"
+        accept="image/*,.pdf,.doc,.docx"
+        className="hidden"
+        onChange={handleUploadProofDocument}
+      />
+
+      {/* ────────────────────────────────────────────────────────── */}
+      {/* SLEEK, UNCLUSTERED RESPONSIVE TOP BAR (NO OVERFLOW)        */}
+      {/* ────────────────────────────────────────────────────────── */}
+      <header className="h-12 shrink-0 border-b border-[#25231f] bg-[#161512] px-3 sm:px-5 flex items-center justify-between gap-2">
+        {/* Left: Back to Agent + Clean Brand Title */}
+        <div className="flex items-center gap-2.5 min-w-0">
           <Link
-            href="/dashboard/chat"
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-700/70 bg-zinc-900/90 px-2.5 py-1 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-800 hover:text-white"
+            href="/admin/agent"
+            className="h-8 px-2.5 rounded-lg bg-[#22201c] hover:bg-[#2c2924] border border-[#35312b] text-xs font-medium text-[#dedad2] flex items-center gap-1.5 transition shrink-0"
           >
-            <ArrowLeft className="size-3.5 text-zinc-400" />
-            <span>Agent</span>
+            <ArrowLeft className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="hidden sm:inline">Agent</span>
           </Link>
 
-          <div className="flex items-center gap-2">
-            <div className="flex size-7 items-center justify-center rounded-lg border border-emerald-500/40 bg-emerald-950/40 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.25)]">
-              <Store className="size-3.5 stroke-[2.2]" />
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-7 w-7 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+              <Briefcase className="h-3.5 w-3.5" />
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold tracking-tight text-white">
-                AutoPulse CRM
-              </span>
-              <span className="hidden items-center rounded-full border border-zinc-800 bg-zinc-900/90 px-2 py-0.5 text-[11px] font-medium text-zinc-400 sm:inline-flex">
-                • {metrics.totalContactsCount || 70} Contacts • {metrics.totalVehiclesCount || 32} Cars
-              </span>
-            </div>
+            <span className="text-xs sm:text-sm font-bold text-[#f5f2eb] truncate">
+              AutoFame CRM
+            </span>
+            <span className="hidden lg:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              {masterContacts.length} Contacts • {realCars.length} Cars
+            </span>
           </div>
         </div>
 
-        {/* Center: Navigation Pills (Workspace · Pipeline · Directory) */}
-        <nav className="flex items-center rounded-lg border border-zinc-800/90 bg-zinc-950/80 p-0.5">
-          <Link
-            href="/dashboard/chat"
-            className="flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-200"
-          >
-            <MessageSquare className="size-3.5" />
-            <span className="hidden md:inline">Workspace</span>
-          </Link>
+        {/* Center: Clean Segmented View Switcher */}
+        <div className="flex items-center gap-1 bg-[#11100e] p-1 rounded-xl border border-[#292621] shrink-0">
           <button
             type="button"
-            onClick={() => setActiveTab("pipeline")}
+            onClick={() => setActiveView("inbox")}
             className={cn(
-              "flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition-all",
-              activeTab === "pipeline"
-                ? "bg-emerald-500 text-zinc-950 shadow-sm"
-                : "text-zinc-400 hover:text-zinc-200"
+              "px-2.5 sm:px-3.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition",
+              activeView === "inbox"
+                ? "bg-emerald-600 text-white"
+                : "text-[#8e8a82] hover:text-white"
             )}
           >
-            <LayoutGrid className="size-3.5" />
-            <span>Pipeline</span>
-            <span className={cn(
-              "rounded-full px-1.5 text-[10px] font-mono",
-              activeTab === "pipeline" ? "bg-emerald-600/30 text-zinc-950 font-bold" : "bg-zinc-800 text-zinc-400"
-            )}>
-              {rawDeals.length}
-            </span>
+            <MessageSquare className="h-3.5 w-3.5" />
+            <span>Workspace</span>
           </button>
+
           <button
             type="button"
-            onClick={() => setActiveTab("directory")}
+            onClick={() => setActiveView("pipeline")}
             className={cn(
-              "flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all",
-              activeTab === "directory"
-                ? "bg-emerald-500 text-zinc-950 font-semibold shadow-sm"
-                : "text-zinc-400 hover:text-zinc-200"
+              "px-2.5 sm:px-3.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition",
+              activeView === "pipeline"
+                ? "bg-emerald-600 text-white"
+                : "text-[#8e8a82] hover:text-white"
             )}
           >
-            <Users className="size-3.5" />
+            <LayoutGrid className="h-3.5 w-3.5" />
+            <span>Pipeline</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveView("directory")}
+            className={cn(
+              "px-2.5 sm:px-3.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition",
+              activeView === "directory"
+                ? "bg-emerald-600 text-white"
+                : "text-[#8e8a82] hover:text-white"
+            )}
+          >
+            <TableIcon className="h-3.5 w-3.5" />
             <span>Directory</span>
           </button>
-        </nav>
+        </div>
 
-        {/* Right: Sync & + Contact Button */}
-        <div className="flex items-center gap-2">
+        {/* Right: Quick Sync + New Contact */}
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
-            onClick={handleSync}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/90 px-2.5 py-1.5 text-xs font-medium text-zinc-300 transition-all hover:border-zinc-700 hover:bg-zinc-800 hover:text-white"
+            onClick={fetchWhatsAppDirectory}
+            title="Sync WhatsApp Directory"
+            className="h-8 px-2.5 rounded-lg bg-[#22201c] hover:bg-[#2c2924] border border-[#35312b] text-xs text-[#dedad2] flex items-center gap-1.5"
           >
-            <RefreshCw className={cn("size-3.5 text-zinc-400", isSyncing && "animate-spin text-emerald-400")} />
-            <span className="hidden sm:inline">Sync</span>
+            <RefreshCw className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="hidden md:inline">Sync</span>
           </button>
 
           <Button
             type="button"
-            size="sm"
-            onClick={() => setIsContactDialogOpen(true)}
-            className="h-8 gap-1.5 rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all hover:bg-emerald-400 active:scale-95"
+            onClick={() => setShowAddModal(true)}
+            className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5"
           >
-            <Plus className="size-3.5 stroke-[2.5]" />
+            <UserPlus className="h-3.5 w-3.5" />
             <span>+ Contact</span>
           </Button>
         </div>
       </header>
 
-      {/* =========================================================================
-          SUB-HEADER CONTROLS & FILTER BAR
-          ========================================================================= */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800/80 bg-[#0c1015]/95 px-4 py-2">
-        {/* Left Side: View Mode + Search + Temperature Tabs */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Board | List Toggle */}
-          <div className="flex items-center rounded-lg border border-zinc-800 bg-zinc-950/80 p-0.5">
-            <button
-              type="button"
-              onClick={() => setViewMode("board")}
-              className={cn(
-                "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all",
-                viewMode === "board"
-                  ? "bg-emerald-500 font-semibold text-zinc-950 shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-200"
-              )}
-            >
-              <LayoutGrid className="size-3" />
-              <span>Board</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("list")}
-              className={cn(
-                "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all",
-                viewMode === "list"
-                  ? "bg-emerald-500 font-semibold text-zinc-950 shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-200"
-              )}
-            >
-              <List className="size-3" />
-              <span>List</span>
-            </button>
-          </div>
-
-          {/* Search Input: Filter deals, cars, phones... */}
-          <div className="relative w-56 sm:w-64">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-zinc-500" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Filter deals, cars, phones..."
-              className="h-8 w-full rounded-lg border border-zinc-800 bg-zinc-950/90 pl-8 pr-7 text-xs text-zinc-200 placeholder:text-zinc-500 focus:border-emerald-500/60 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
-              >
-                <X className="size-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* Temperature Pills: All | 🔥 Hot | Warm */}
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setTemperatureFilter("all")}
-              className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium transition-all",
-                temperatureFilter === "all"
-                  ? "border border-zinc-700 bg-zinc-800 text-white"
-                  : "text-zinc-400 hover:text-zinc-200"
-              )}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              onClick={() => setTemperatureFilter("hot")}
-              className={cn(
-                "flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-all",
-                temperatureFilter === "hot"
-                  ? "border border-rose-500/40 bg-rose-950/60 text-rose-300 shadow-sm shadow-rose-950"
-                  : "text-zinc-400 hover:text-rose-400"
-              )}
-            >
-              <span>🔥</span>
-              <span>Hot</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setTemperatureFilter("warm")}
-              className={cn(
-                "flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all",
-                temperatureFilter === "warm"
-                  ? "border border-amber-500/40 bg-amber-950/60 text-amber-300 shadow-sm shadow-amber-950"
-                  : "text-zinc-400 hover:text-amber-400"
-              )}
-            >
-              <span>Warm</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Right Side: 3 Metric Cards (OPEN PIPELINE · WON · WIN RATE) */}
-        <div className="flex items-center gap-2">
-          {/* Card 1: OPEN PIPELINE */}
-          <div className="flex items-center gap-2 rounded-lg border border-zinc-800/80 bg-zinc-950/70 px-3 py-1">
-            <div className="flex size-6 items-center justify-center rounded-md bg-emerald-950/50 text-emerald-400">
-              <Wallet className="size-3" />
-            </div>
-            <div>
-              <span className="block text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
-                OPEN PIPELINE
-              </span>
-              <span className="font-mono text-xs font-bold text-zinc-100">
-                {formatZar(metrics.openPipelineValue)} · {metrics.openDealsCount}
-              </span>
-            </div>
-          </div>
-
-          {/* Card 2: WON */}
-          <div className="flex items-center gap-2 rounded-lg border border-zinc-800/80 bg-zinc-950/70 px-3 py-1">
-            <div className="flex size-6 items-center justify-center rounded-md bg-amber-950/50 text-amber-400">
-              <Trophy className="size-3" />
-            </div>
-            <div>
-              <span className="block text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
-                WON
-              </span>
-              <span className="font-mono text-xs font-bold text-zinc-100">
-                {formatZar(metrics.wonPipelineValue)} · {metrics.wonDealsCount}
-              </span>
-            </div>
-          </div>
-
-          {/* Card 3: WIN RATE */}
-          <div className="flex items-center gap-2 rounded-lg border border-zinc-800/80 bg-zinc-950/70 px-3 py-1">
-            <div className="flex size-6 items-center justify-center rounded-md bg-sky-950/50 text-sky-400">
-              <TrendingUp className="size-3" />
-            </div>
-            <div>
-              <span className="block text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
-                WIN RATE
-              </span>
-              <span className="font-mono text-xs font-bold text-zinc-100">
-                {metrics.winRate}%
-              </span>
-            </div>
-          </div>
-
-          {/* Toggle Won / Dispatched column */}
-          <button
-            type="button"
-            onClick={() => setShowWonStage(!showWonStage)}
-            title="Toggle Won & Dispatched Column"
-            className={cn(
-              "rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors",
-              showWonStage
-                ? "border-teal-500/40 bg-teal-950/30 text-teal-300"
-                : "border-zinc-800 text-zinc-500 hover:text-zinc-300"
-            )}
-          >
-            + Won
-          </button>
-        </div>
-      </div>
-
-      {/* =========================================================================
-          KEYBOARD / GESTURE INSTRUCTION BAR (Exact matching video strip)
-          ========================================================================= */}
-      <div className="flex shrink-0 items-center justify-between border-b border-zinc-800/50 bg-[#080b0f] px-4 py-1.5 text-[11px] text-zinc-500 select-none">
-        <div className="flex items-center gap-2">
-          <span>Drag cards to move or reorder</span>
-          <span>·</span>
-          <span>Tap a stage dot to jump</span>
-          <span className="hidden md:inline">·</span>
-          <span className="hidden md:inline">Shift + ← → stage, ↑ ↓ reorder</span>
-          <span className="hidden md:inline">·</span>
-          <span className="hidden md:inline">Esc cancels a drag</span>
-        </div>
-        <div className="flex items-center gap-2 font-mono text-[10px] text-zinc-400">
-          <span className="flex items-center gap-1">
-            <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            WhatsApp &amp; Live Webhook Synced
-          </span>
-        </div>
-      </div>
-
-      {/* =========================================================================
-          MAIN WORKSPACE AREA: BOARD VIEW OR LIST VIEW OR DIRECTORY
-          ========================================================================= */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden bg-[#090d13]">
-        {activeTab === "directory" ? (
-          /* ---------------- Directory View ---------------- */
-          <div className="h-full overflow-y-auto p-6">
-            <div className="mx-auto max-w-6xl space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-white">Contacts &amp; Accounts Directory</h2>
-                  <p className="text-xs text-zinc-400">Direct buyers, workshops, and fleet accounts</p>
-                </div>
-                <Button size="sm" onClick={() => setIsContactDialogOpen(true)} className="bg-emerald-500 text-zinc-950 hover:bg-emerald-400">
-                  <Plus className="mr-1.5 size-3.5" /> Add Contact
-                </Button>
+      {/* ────────────────────────────────────────────────────────── */}
+      {/* VIEW 1: ZERO-SCROLL WORKSPACE (CONTACTS + CHAT / DOSSIER)  */}
+      {/* ────────────────────────────────────────────────────────── */}
+      {activeView === "inbox" && (
+        <div className="flex-1 flex overflow-hidden">
+          {/* LEFT PANE: FITTED CONTACT SELECTOR (NO SCROLLBAR NEEDED) */}
+          <aside className="w-72 lg:w-80 shrink-0 border-r border-[#25231f] bg-[#141310] flex flex-col justify-between overflow-hidden">
+            {/* Search & Filter Header */}
+            <div className="p-2.5 border-b border-[#25231f] space-y-2 shrink-0">
+              <div className="relative">
+                <Search className="h-3.5 w-3.5 text-[#8e8a82] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search contact or phone..."
+                  className="w-full bg-[#1b1a17] border border-[#33302a] rounded-lg pl-8 pr-7 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[#8e8a82] hover:text-white"
+                  >
+                    ×
+                  </button>
+                )}
               </div>
 
-              <div className="overflow-hidden rounded-xl border border-zinc-800 bg-[#12161f]">
-                <table className="w-full text-left text-xs">
-                  <thead className="border-b border-zinc-800 bg-zinc-900/60 text-zinc-400">
-                    <tr>
-                      <th className="px-4 py-3 font-medium">Contact / Buyer</th>
-                      <th className="px-4 py-3 font-medium">Type</th>
-                      <th className="px-4 py-3 font-medium">Phone &amp; Channel</th>
-                      <th className="px-4 py-3 font-medium">Vehicle / Interest</th>
-                      <th className="px-4 py-3 font-medium">Deals Total</th>
-                      <th className="px-4 py-3 font-medium text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-800/60 text-zinc-300">
-                    {rawDeals.map((deal) => (
-                      <tr key={deal._id} className="hover:bg-zinc-850/50 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2.5">
-                            <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-800 text-[11px] font-bold text-white">
-                              {getInitials(deal.contact?.name || "AP")}
+              <div className="grid grid-cols-3 gap-1">
+                {[
+                  { id: "recent", label: `Recent (${recentChatsCount})` },
+                  { id: "all", label: `All (${masterContacts.length})` },
+                  { id: "finance", label: "Finance" },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setContactFilter(tab.id as any)}
+                    className={cn(
+                      "py-1 px-1.5 rounded-md text-[10px] font-semibold border truncate transition",
+                      contactFilter === tab.id
+                        ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                        : "bg-[#1a1916] border-[#262420] text-[#8e8a82] hover:text-white"
+                    )}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Fitted Contact List (8 per page — Zero Scrollbar!) */}
+            <div className="flex-1 flex flex-col divide-y divide-[#1f1d19] overflow-hidden">
+              {pagedSidebarContacts.map((c, idx) => {
+                const isSelected = selectedContact?.contactKey === c.contactKey;
+                const stageMeta =
+                  PIPELINE_STAGES.find((s) => s.id === c.stage) || PIPELINE_STAGES[1];
+                const initials =
+                  (c.name || "WA")
+                    .replace(/[^A-Za-z0-9\s]/g, "")
+                    .trim()
+                    .split(/\s+/)
+                    .slice(0, 2)
+                    .map((w: string) => w[0] || "")
+                    .join("")
+                    .toUpperCase() || "WA";
+
+                return (
+                  <button
+                    key={`${c.contactKey}-${idx}`}
+                    type="button"
+                    onClick={() => handleSelectContact(c)}
+                    className={cn(
+                      "w-full flex-1 text-left px-3 py-1.5 transition flex items-center gap-2.5 min-h-0",
+                      isSelected
+                        ? "bg-emerald-500/15 border-l-2 border-l-emerald-400"
+                        : "hover:bg-[#1b1a17]"
+                    )}
+                  >
+                    <div className="h-7 w-7 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-[10px] font-bold text-emerald-300 shrink-0">
+                      {initials}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="text-xs font-bold text-[#f5f2eb] truncate">{c.name}</p>
+                        <span className="text-[9px] font-mono text-emerald-400 shrink-0">
+                          {c.lastContactedLabel || "Synced"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-1 mt-0.5">
+                        <p className="text-[10px] text-[#8e8a82] truncate">
+                          {c.lastMessage || c.phone}
+                        </p>
+                        <span
+                          className={cn(
+                            "text-[8px] font-semibold px-1.5 py-0.2 rounded border shrink-0",
+                            stageMeta.badgeClass
+                          )}
+                        >
+                          {stageMeta.shortLabel}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Compact Page Flipper Footer */}
+            <div className="h-9 px-3 border-t border-[#25231f] bg-[#161512] flex items-center justify-between text-[10px] font-mono text-[#8e8a82] shrink-0">
+              <button
+                type="button"
+                disabled={sidebarPage === 0}
+                onClick={() => setSidebarPage((p) => Math.max(0, p - 1))}
+                className="px-2 py-0.5 rounded bg-[#22201c] hover:bg-[#2c2924] disabled:opacity-40 text-white flex items-center gap-1"
+              >
+                <ChevronLeft className="h-3 w-3" /> Prev
+              </button>
+              <span>
+                Page {sidebarPage + 1} / {totalSidebarPages}
+              </span>
+              <button
+                type="button"
+                disabled={sidebarPage + 1 >= totalSidebarPages}
+                onClick={() =>
+                  setSidebarPage((p) => Math.min(totalSidebarPages - 1, p + 1))
+                }
+                className="px-2 py-0.5 rounded bg-[#22201c] hover:bg-[#2c2924] disabled:opacity-40 text-white flex items-center gap-1"
+              >
+                Next <ChevronRight className="h-3 w-3" />
+              </button>
+            </div>
+          </aside>
+
+          {/* MAIN WORKSPACE: TABBED ZERO-SCROLL CUSTOMER COMMAND CENTER */}
+          <main className="flex-1 flex flex-col bg-[#11100e] overflow-hidden">
+            {selectedContact ? (
+              <>
+                {/* Customer Sub-Header Bar with Chat vs Dossier Toggle */}
+                <div className="h-12 px-4 border-b border-[#25231f] bg-[#161512] flex items-center justify-between gap-3 shrink-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="h-7 w-7 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-xs font-bold text-emerald-300 shrink-0">
+                      {(selectedContact.name || "C")[0]?.toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-xs sm:text-sm font-bold text-[#f5f2eb] truncate">
+                          {selectedContact.name}
+                        </h2>
+                        <span className="text-[10px] font-mono text-emerald-400 shrink-0">
+                          {selectedContact.phone}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Center: Mode Switcher (Conversation & Quotes vs Finance Dossier & Bank) */}
+                  <div className="flex items-center gap-1 bg-[#11100e] p-1 rounded-lg border border-[#292621] shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setWorkspaceTab("chat")}
+                      className={cn(
+                        "px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition",
+                        workspaceTab === "chat"
+                          ? "bg-emerald-600 text-white"
+                          : "text-[#8e8a82] hover:text-white"
+                      )}
+                    >
+                      <PhoneCall className="h-3 w-3" />
+                      <span>Chat &amp; Quotes</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWorkspaceTab("dossier")}
+                      className={cn(
+                        "px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition",
+                        workspaceTab === "dossier"
+                          ? "bg-emerald-600 text-white"
+                          : "text-[#8e8a82] hover:text-white"
+                      )}
+                    >
+                      <Building2 className="h-3 w-3" />
+                      <span>
+                        Finance Dossier ({Object.keys(finProofDocs).length}/5 Docs)
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Right: Stage Selector */}
+                  <div className="hidden md:flex items-center gap-2 shrink-0">
+                    <select
+                      value={selectedContact.stage || "CONTACTED"}
+                      onChange={(e) =>
+                        handleStageChange(selectedContact, e.target.value as PipelineStage)
+                      }
+                      className="bg-[#1b1a17] border border-[#35312b] rounded-lg px-2.5 py-1 text-xs font-semibold text-[#f5f2eb] focus:outline-none focus:border-emerald-500"
+                    >
+                      {PIPELINE_STAGES.map((st) => (
+                        <option key={st.id} value={st.id}>
+                          Stage: {st.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* SUB-TAB 1: CONVERSATION & QUOTATION COMPOSER (FITTED ZERO-SCROLL) */}
+                {workspaceTab === "chat" && (
+                  <div className="flex-1 flex flex-col justify-between p-4 gap-3 overflow-hidden">
+                    {/* Top: Active Deal Summary + Recent Messages */}
+                    <div className="flex-1 flex flex-col gap-3 min-h-0 overflow-hidden">
+                      {/* Vehicle & Deal Value Bar */}
+                      <div className="p-3 rounded-xl bg-[#161512] border border-[#262420] flex flex-wrap items-center justify-between gap-3 shrink-0">
+                        <div className="flex items-center gap-2.5">
+                          <Car className="h-4 w-4 text-emerald-400 shrink-0" />
+                          <span className="text-xs text-[#8e8a82]">Assigned Vehicle:</span>
+                          <select
+                            value={finCarId || ""}
+                            onChange={(e) => {
+                              const id = Number(e.target.value);
+                              const car = realCars.find((c: any) => c.id === id);
+                              if (car) {
+                                setFinCarId(car.id);
+                                setFinCarName(`${car.year} ${car.make} ${car.model}`);
+                                setFinCarPrice(car.price || 0);
+                                setFinDeposit(Math.round((car.price || 0) * 0.1));
+                              }
+                            }}
+                            className="bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1 text-xs font-semibold text-white"
+                          >
+                            {realCars.map((c: any) => (
+                              <option key={c.id} value={c.id}>
+                                {c.year} {c.make} {c.model} — R
+                                {Number(c.price || 0).toLocaleString()} ZAR
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="flex items-center gap-4 text-xs">
+                          <span>
+                            Price:{" "}
+                            <strong className="font-mono text-emerald-400">
+                              R{Number(finCarPrice || 0).toLocaleString()}
+                            </strong>
+                          </span>
+                          <span>
+                            10% Deposit:{" "}
+                            <strong className="font-mono text-[#f5f2eb]">
+                              R{Number(finDeposit || 0).toLocaleString()}
+                            </strong>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setWorkspaceTab("dossier")}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-[11px] font-semibold text-emerald-300"
+                          >
+                            Open Finance Dossier →
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Messages Display Area */}
+                      <div className="flex-1 rounded-xl bg-[#151411] border border-[#24221e] p-4 flex flex-col justify-between gap-3 overflow-hidden">
+                        <div className="flex items-start gap-3">
+                          <div className="h-8 w-8 rounded-lg bg-[#22201c] border border-[#35312b] flex items-center justify-center text-xs font-bold text-emerald-400 shrink-0">
+                            {(selectedContact.name || "C")[0]?.toUpperCase()}
+                          </div>
+                          <div className="max-w-2xl rounded-xl bg-[#1c1a17] border border-[#2e2b25] p-3 space-y-1">
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-xs font-bold text-emerald-400">
+                                {selectedContact.name} ({selectedContact.phone})
+                              </span>
+                              <span className="text-[10px] font-mono text-[#8e8a82]">
+                                {selectedContact.lastContactedLabel || "WhatsApp Chat"}
+                              </span>
                             </div>
-                            <div>
-                              <span className="font-semibold text-white block">{deal.contact?.name}</span>
-                              {deal.contact?.companyName && (
-                                <span className="text-[11px] text-zinc-400">{deal.contact.companyName}</span>
-                              )}
+                            <p className="text-xs text-[#eae7e1] line-clamp-3 leading-relaxed">
+                              {selectedContact.lastMessage || "No message text recorded."}
+                            </p>
+                          </div>
+                        </div>
+
+                        {(contactChatHistory[selectedContact.contactKey] || []).map((m) => (
+                          <div key={m.id} className="flex justify-end">
+                            <div className="max-w-2xl rounded-xl bg-emerald-600/20 border border-emerald-500/40 p-3 space-y-1 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <span className="text-[10px] font-mono text-emerald-300">
+                                  {m.sender} • {m.time}
+                                </span>
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                              </div>
+                              <p className="text-xs text-[#f5f2eb] line-clamp-3 text-left leading-relaxed">
+                                {m.text}
+                              </p>
                             </div>
                           </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Bottom: Omnichannel Reply & Quotation Composer */}
+                    <div className="p-3.5 rounded-xl bg-[#161512] border border-[#262420] space-y-2.5 shrink-0">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setComposerChannel("whatsapp")}
+                            className={cn(
+                              "px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 border transition",
+                              composerChannel === "whatsapp"
+                                ? "bg-emerald-600 text-white border-emerald-500"
+                                : "bg-[#1b1a17] text-[#8e8a82] border-[#2e2b25]"
+                            )}
+                          >
+                            <PhoneCall className="h-3 w-3" />
+                            <span>WhatsApp Reply</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setComposerChannel("email")}
+                            className={cn(
+                              "px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 border transition",
+                              composerChannel === "email"
+                                ? "bg-emerald-600 text-white border-emerald-500"
+                                : "bg-[#1b1a17] text-[#8e8a82] border-[#2e2b25]"
+                            )}
+                          >
+                            <Mail className="h-3 w-3" />
+                            <span>Gmail Dispatch</span>
+                          </button>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const firstName = selectedContact.name
+                                .replace(/\(.*?\)/g, "")
+                                .trim()
+                                .split(" ")[0];
+                              setComposerText(
+                                `Hi ${firstName}, thank you for contacting AutoFame Dealership Johannesburg South. I have reviewed your message regarding the ${finCarName}. How can I assist you further today?`
+                              );
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-[#22201c] hover:bg-[#2c2924] border border-[#35312b] text-[11px] font-medium text-[#eae7e1]"
+                          >
+                            Smart Reply
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const firstName = selectedContact.name
+                                .replace(/\(.*?\)/g, "")
+                                .trim()
+                                .split(" ")[0];
+                              const price = Number(finCarPrice || 249900);
+                              const deposit = Number(finDeposit || Math.round(price * 0.1));
+                              const loan = Math.max(price - deposit, 0);
+                              const est = Math.round(loan * 0.0218);
+                              setComposerText(
+                                `📄 *AUTOFAME OFFICIAL VEHICLE QUOTATION*\n━━━━━━━━━━━━━━━━━━━━\nHi ${firstName}, here is your official quotation:\n\n🚘 *Vehicle:* ${finCarName}\n💰 *Retail Price:* R${price.toLocaleString()} ZAR\n💵 *10% Deposit:* R${deposit.toLocaleString()} ZAR\n💳 *Principal Loan:* R${loan.toLocaleString()} ZAR\n📊 *Est. Monthly:* ~R${est.toLocaleString()} ZAR/pm (72 Months @ 11.75%)\n\nReply *FINANCE* or send your SA ID, Driver's License, 3 months bank statements & payslips here to apply.`
+                              );
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-[#22201c] hover:bg-[#2c2924] border border-[#35312b] text-[11px] font-medium text-[#eae7e1]"
+                          >
+                            Official Quote
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const firstName = selectedContact.name
+                                .replace(/\(.*?\)/g, "")
+                                .trim()
+                                .split(" ")[0];
+                              setComposerText(
+                                `📋 *AutoFame Vehicle Finance Application Container*\n\nHi ${firstName}, to submit your bank finance application for the *${finCarName}* (R${Number(
+                                  finCarPrice || 0
+                                ).toLocaleString()} ZAR), please reply here with:\n1. Full Name, 13-Digit SA ID, Email & Address\n2. Employer, Job Title, Gross Monthly Income & Expenses\n3. FICA Proof Docs: SA ID, Driver's License, 3 Months Bank Statements, Payslips & Proof of Residence.`
+                              );
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-[#22201c] hover:bg-[#2c2924] border border-[#35312b] text-[11px] font-medium text-[#eae7e1]"
+                          >
+                            Finance Container
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <textarea
+                          rows={3}
+                          value={composerText}
+                          onChange={(e) => setComposerText(e.target.value)}
+                          placeholder="Write a WhatsApp message, vehicle quotation, or finance checklist..."
+                          className="flex-1 bg-[#1b1a17] border border-[#33302a] rounded-xl p-2.5 text-xs text-[#f5f2eb] leading-relaxed focus:outline-none focus:border-emerald-500 resize-none"
+                        />
+                        <Button
+                          type="button"
+                          disabled={sendingMessage}
+                          onClick={handleSendOmnichannelMessage}
+                          className="h-auto px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex flex-col items-center justify-center gap-1 shrink-0"
+                        >
+                          <Send className="h-4 w-4" />
+                          <span>
+                            {sendingMessage
+                              ? "Sending..."
+                              : composerChannel === "whatsapp"
+                              ? "Send WhatsApp"
+                              : "Send Email"}
+                          </span>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUB-TAB 2: 2-COLUMN ZERO-SCROLL FINANCE DOSSIER & BANK SUBMISSION */}
+                {workspaceTab === "dossier" && (
+                  <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 overflow-hidden">
+                    {/* Left Column: Applicant, Vehicle & Affordability Fields */}
+                    <div className="flex flex-col justify-between rounded-xl bg-[#161512] border border-[#262420] p-4 overflow-hidden">
+                      <div className="flex items-center justify-between pb-2 border-b border-[#25231f]">
+                        <div>
+                          <h3 className="text-xs font-bold uppercase font-mono text-emerald-400">
+                            1. Applicant, Vehicle &amp; Affordability
+                          </h3>
+                          <p className="text-[10px] text-[#8e8a82]">
+                            Auto-filled from WhatsApp chat or editable below
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleExtractFromWhatsAppToDossier}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-[10px] font-semibold text-emerald-300 flex items-center gap-1"
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                          Extract Chat → Form
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="text-[10px] text-[#8e8a82] block mb-0.5">
+                            First Name
+                          </label>
+                          <input
+                            type="text"
+                            value={finFirstName}
+                            onChange={(e) => setFinFirstName(e.target.value)}
+                            className="w-full bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1.5 text-xs text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[#8e8a82] block mb-0.5">
+                            Surname
+                          </label>
+                          <input
+                            type="text"
+                            value={finLastName}
+                            onChange={(e) => setFinLastName(e.target.value)}
+                            className="w-full bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1.5 text-xs text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[#8e8a82] block mb-0.5">
+                            13-Digit SA ID
+                          </label>
+                          <input
+                            type="text"
+                            value={finIdNumber}
+                            onChange={(e) => setFinIdNumber(e.target.value)}
+                            placeholder="9001015009087"
+                            className="w-full bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[#8e8a82] block mb-0.5">
+                            WhatsApp / Phone
+                          </label>
+                          <input
+                            type="text"
+                            value={finPhone}
+                            onChange={(e) => setFinPhone(e.target.value)}
+                            className="w-full bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[#8e8a82] block mb-0.5">
+                            Email Address
+                          </label>
+                          <input
+                            type="email"
+                            value={finEmail}
+                            onChange={(e) => setFinEmail(e.target.value)}
+                            placeholder="client@email.co.za"
+                            className="w-full bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1.5 text-xs text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[#8e8a82] block mb-0.5">
+                            Physical Address
+                          </label>
+                          <input
+                            type="text"
+                            value={finAddress}
+                            onChange={(e) => setFinAddress(e.target.value)}
+                            className="w-full bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1.5 text-xs text-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#25231f]">
+                        <div className="col-span-2">
+                          <label className="text-[10px] text-[#8e8a82] block mb-0.5">
+                            Showroom Vehicle
+                          </label>
+                          <select
+                            value={finCarId || ""}
+                            onChange={(e) => {
+                              const id = Number(e.target.value);
+                              const car = realCars.find((c: any) => c.id === id);
+                              if (car) {
+                                setFinCarId(car.id);
+                                setFinCarName(`${car.year} ${car.make} ${car.model}`);
+                                setFinCarPrice(car.price || 0);
+                                setFinDeposit(Math.round((car.price || 0) * 0.1));
+                              }
+                            }}
+                            className="w-full bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1.5 text-xs text-white"
+                          >
+                            {realCars.map((c: any) => (
+                              <option key={c.id} value={c.id}>
+                                {c.year} {c.make} {c.model} — R
+                                {Number(c.price || 0).toLocaleString()}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[#8e8a82] block mb-0.5">
+                            Deposit (R ZAR)
+                          </label>
+                          <input
+                            type="number"
+                            value={finDeposit || ""}
+                            onChange={(e) => setFinDeposit(Number(e.target.value))}
+                            className="w-full bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#25231f]">
+                        <div>
+                          <label className="text-[10px] text-[#8e8a82] block mb-0.5">
+                            Employer / Bank
+                          </label>
+                          <input
+                            type="text"
+                            value={finEmployerName}
+                            onChange={(e) => setFinEmployerName(e.target.value)}
+                            placeholder="Company Name"
+                            className="w-full bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1.5 text-xs text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[#8e8a82] block mb-0.5">
+                            Gross Income (R)
+                          </label>
+                          <input
+                            type="number"
+                            value={finMonthlyIncome || ""}
+                            onChange={(e) => setFinMonthlyIncome(Number(e.target.value))}
+                            placeholder="38000"
+                            className="w-full bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[#8e8a82] block mb-0.5">
+                            Expenses (R)
+                          </label>
+                          <input
+                            type="number"
+                            value={finMonthlyExpenses || ""}
+                            onChange={(e) => setFinMonthlyExpenses(Number(e.target.value))}
+                            placeholder="14500"
+                            className="w-full bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column: 5 FICA Proof Documents & Bank Email Dispatch */}
+                    <div className="flex flex-col justify-between rounded-xl bg-[#161512] border border-[#262420] p-4 overflow-hidden">
+                      <div className="flex items-center justify-between pb-2 border-b border-[#25231f]">
+                        <div>
+                          <h3 className="text-xs font-bold uppercase font-mono text-emerald-400">
+                            2. FICA Proof Documents &amp; Bank Dispatch
+                          </h3>
+                          <p className="text-[10px] text-[#8e8a82]">
+                            Attach all 5 documents and dispatch with MIME attachments
+                          </p>
+                        </div>
+                        <span
+                          className={cn(
+                            "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold",
+                            missingFinanceItems.length === 0
+                              ? "bg-emerald-500/20 text-emerald-300"
+                              : "bg-amber-500/20 text-amber-300"
+                          )}
+                        >
+                          {Object.keys(finProofDocs).length}/5 Uploaded
+                        </span>
+                      </div>
+
+                      {/* 5 Compact Document Rows */}
+                      <div className="space-y-1.5">
+                        {FICA_DOCUMENT_TYPES.map((doc) => {
+                          const uploaded = finProofDocs[doc.code];
+                          return (
+                            <div
+                              key={doc.code}
+                              className={cn(
+                                "flex items-center justify-between px-3 py-2 rounded-lg border text-xs",
+                                uploaded
+                                  ? "bg-emerald-500/10 border-emerald-500/40"
+                                  : "bg-[#11100e] border-[#262420]"
+                              )}
+                            >
+                              <div className="min-w-0 flex-1 pr-2 flex items-center gap-2">
+                                {uploaded ? (
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                                ) : (
+                                  <FileText className="h-3.5 w-3.5 text-[#8e8a82] shrink-0" />
+                                )}
+                                <span className="text-xs font-medium text-[#eae7e1] truncate">
+                                  {doc.label}
+                                </span>
+                                {uploaded && (
+                                  <span className="text-[10px] text-emerald-400 truncate">
+                                    ({uploaded.originalName})
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveDocUploadCode(doc.code);
+                                  proofDocInputRef.current?.click();
+                                }}
+                                className="px-2.5 py-1 rounded bg-[#22201c] hover:bg-[#2c2924] border border-[#35312b] text-[10px] font-semibold text-[#dedad2] shrink-0 flex items-center gap-1"
+                              >
+                                <Upload className="h-3 w-3 text-emerald-400" />
+                                {uploaded ? "Replace" : "Attach"}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Bank Underwriting Selector & Submit Buttons */}
+                      <div className="pt-2 border-t border-[#25231f] space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <label className="text-[10px] font-mono uppercase text-[#8e8a82]">
+                            Target Bank Desk:
+                          </label>
+                          <select
+                            value={bankRecipientEmail}
+                            onChange={(e) => setBankRecipientEmail(e.target.value)}
+                            className="flex-1 bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1.5 text-xs text-white"
+                          >
+                            {BANK_OPTIONS.map((b) => (
+                              <option key={b.email} value={b.email}>
+                                {b.label} ({b.email})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            type="button"
+                            onClick={() => handleSaveDossierAndSubmitToBank(false)}
+                            className="bg-[#22201c] hover:bg-[#2c2924] text-white border border-[#35312b] text-xs font-semibold h-9 rounded-xl"
+                          >
+                            Save Dossier
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={() => handleSaveDossierAndSubmitToBank(true)}
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold h-9 rounded-xl flex items-center justify-center gap-1.5"
+                          >
+                            <Mail className="h-3.5 w-3.5" />
+                            Email Dossier &amp; Docs to Bank
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : null}
+          </main>
+        </div>
+      )}
+
+      {/* ────────────────────────────────────────────────────────── */}
+      {/* VIEW 2: FULL-WIDTH RESPONSIVE PIPELINE GRID (ZERO SCROLL)  */}
+      {/* ────────────────────────────────────────────────────────── */}
+      {activeView === "pipeline" && (
+        <PipelineBoard
+          contacts={masterContacts}
+          stages={PIPELINE_STAGES}
+          onMove={handlePipelineMove}
+          onPriorityChange={handlePriorityChange}
+          onOpen={(c) => {
+            handleSelectContact(c);
+            setActiveView("inbox");
+          }}
+        />
+      )}
+
+
+      {/* ────────────────────────────────────────────────────────── */}
+      {/* VIEW 3: ZERO-SCROLL PAGINATED MASTER CONTACT DIRECTORY     */}
+      {/* ────────────────────────────────────────────────────────── */}
+      {activeView === "directory" && (
+        <div className="flex-1 flex flex-col p-4 bg-[#11100e] overflow-hidden">
+          <div className="max-w-7xl w-full mx-auto flex-1 flex flex-col justify-between bg-[#161512] border border-[#25231f] rounded-2xl overflow-hidden">
+            {/* Toolbar */}
+            <div className="p-3.5 border-b border-[#25231f] flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <div>
+                <h2 className="text-xs sm:text-sm font-bold text-[#f5f2eb]">
+                  Master Dealership Contact Directory ({filteredContacts.length} Contacts)
+                </h2>
+                <p className="text-[10px] text-[#8e8a82]">
+                  Sorted by Last Contacted • Zero-scroll paginated directory
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Filter by name, phone, car, or message..."
+                  className="w-64 bg-[#11100e] border border-[#33302a] rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+            </div>
+
+            {/* Fitted Table Body (9 rows per page — Zero Scrollbar!) */}
+            <div className="flex-1 overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-[#1c1a17] border-b border-[#2e2b25] text-[10px] font-mono uppercase text-[#8e8a82]">
+                  <tr>
+                    <th className="py-2.5 px-4">#</th>
+                    <th className="py-2.5 px-4">Contact Name</th>
+                    <th className="py-2.5 px-4">WhatsApp / Phone</th>
+                    <th className="py-2.5 px-4">Stage</th>
+                    <th className="py-2.5 px-4">Assigned Vehicle</th>
+                    <th className="py-2.5 px-4">Deal Value</th>
+                    <th className="py-2.5 px-4">Last Message</th>
+                    <th className="py-2.5 px-4">Last Contacted</th>
+                    <th className="py-2.5 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#22201c] text-xs">
+                  {pagedDirectoryContacts.map((c, i) => {
+                    const rowNum = directoryPage * DIRECTORY_PAGE_SIZE + i + 1;
+                    const stageMeta =
+                      PIPELINE_STAGES.find((s) => s.id === c.stage) || PIPELINE_STAGES[1];
+                    return (
+                      <tr
+                        key={`${c.contactKey}-${rowNum}`}
+                        className="hover:bg-[#1c1a17] transition"
+                      >
+                        <td className="py-2.5 px-4 font-mono text-[11px] text-[#8e8a82]">
+                          {rowNum}
                         </td>
-                        <td className="px-4 py-3">
-                          <span className={cn(
-                            "rounded-full px-2 py-0.5 text-[10px] font-medium border",
-                            deal.contact?.type === "workshop_b2b"
-                              ? "border-emerald-500/30 bg-emerald-950/40 text-emerald-300"
-                              : "border-sky-500/30 bg-sky-950/40 text-sky-300"
-                          )}>
-                            {deal.contact?.type === "workshop_b2b" ? "Workshop B2B" : "Retail B2C"}
+                        <td className="py-2.5 px-4 font-bold text-[#f5f2eb]">{c.name}</td>
+                        <td className="py-2.5 px-4 font-mono text-emerald-400">
+                          {c.phone}
+                        </td>
+                        <td className="py-2.5 px-4">
+                          <span
+                            className={cn(
+                              "text-[10px] font-semibold px-2 py-0.5 rounded border",
+                              stageMeta.badgeClass
+                            )}
+                          >
+                            {stageMeta.shortLabel}
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-mono text-zinc-400">
-                          {deal.contact?.phone}
+                        <td className="py-2.5 px-4 text-[#dedad2] truncate max-w-[180px]">
+                          {c.assignedCarName}
                         </td>
-                        <td className="px-4 py-3">
-                          {deal.vehicle?.make ? (
-                            <span className="flex items-center gap-1.5 text-zinc-300">
-                              <Car className="size-3 text-emerald-400" />
-                              {deal.vehicle.year} {deal.vehicle.make} {deal.vehicle.model}
-                            </span>
-                          ) : (
-                            <span className="text-zinc-500">General RFQ</span>
-                          )}
+                        <td className="py-2.5 px-4 font-mono font-semibold text-emerald-300">
+                          R{Number(c.dealValueZar || 249900).toLocaleString()}
                         </td>
-                        <td className="px-4 py-3 font-mono font-bold text-white">
-                          {formatZar(deal.totalAmount)}
+                        <td className="py-2.5 px-4 text-[#a09c94] max-w-xs truncate">
+                          {c.lastMessage}
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <a
-                              href={`https://wa.me/${deal.contact?.phone.replace(/[^\d]/g, "")}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="rounded-md border border-emerald-500/30 bg-emerald-950/40 p-1.5 text-emerald-400 hover:bg-emerald-900/60"
-                              title="Chat on WhatsApp"
-                            >
-                              <MessageCircle className="size-3.5" />
-                            </a>
+                        <td className="py-2.5 px-4 font-mono text-[11px] text-emerald-400">
+                          {c.lastContactedLabel || "Synced"}
+                        </td>
+                        <td className="py-2.5 px-4 text-right">
+                          <div className="inline-flex items-center gap-1.5">
                             <button
                               type="button"
-                              onClick={() => setSelectedDeal(deal)}
-                              className="rounded-md border border-zinc-700 bg-zinc-800 p-1.5 text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                              title="Open Deal Inspector"
+                              onClick={() => {
+                                handleSelectContact(c);
+                                setWorkspaceTab("chat");
+                                setActiveView("inbox");
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold"
                             >
-                              <ChevronRight className="size-3.5" />
+                              Chat
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleSelectContact(c);
+                                setWorkspaceTab("dossier");
+                                setActiveView("inbox");
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-[#22201c] hover:bg-[#2c2924] border border-[#35312b] text-[#dedad2] text-[11px] font-semibold"
+                            >
+                              Dossier
                             </button>
                           </div>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        ) : viewMode === "list" ? (
-          /* ---------------- List View Table ---------------- */
-          <div className="h-full overflow-y-auto p-4">
-            <div className="rounded-xl border border-zinc-800 bg-[#12161f]">
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-zinc-800 bg-zinc-900/80 text-zinc-400">
-                  <tr>
-                    <th className="px-4 py-3 font-medium">Buyer / Contact</th>
-                    <th className="px-4 py-3 font-medium">Phone &amp; Channel</th>
-                    <th className="px-4 py-3 font-medium">Vehicle / Parts</th>
-                    <th className="px-4 py-3 font-medium">Stage</th>
-                    <th className="px-4 py-3 font-medium">Value (ZAR)</th>
-                    <th className="px-4 py-3 font-medium">Temperature</th>
-                    <th className="px-4 py-3 font-medium text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800/60 text-zinc-300">
-                  {filteredDeals.map((deal) => {
-                    const stageConfig = CRM_STAGES.find((s) => s.key === deal.status)
-                    return (
-                      <tr
-                        key={deal._id}
-                        onClick={() => setSelectedDeal(deal)}
-                        className="cursor-pointer hover:bg-zinc-800/40 transition-colors"
-                      >
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2.5">
-                            <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-800 text-[11px] font-bold text-white">
-                              {getInitials(deal.contact?.name || "AP")}
-                            </div>
-                            <span className="font-semibold text-white">{deal.contact?.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 font-mono text-zinc-400">
-                          {deal.contact?.phone}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1.5 text-zinc-200">
-                            <Car className="size-3 text-emerald-400" />
-                            <span>
-                              {deal.vehicle?.year} {deal.vehicle?.make} {deal.vehicle?.model}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={cn(
-                            "flex w-fit items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase",
-                            stageConfig?.ringColor,
-                            stageConfig?.textColor,
-                            "border-zinc-700 bg-zinc-900"
-                          )}>
-                            <span className={cn("size-1.5 rounded-full", stageConfig?.dotColor)} />
-                            {stageConfig?.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 font-mono font-bold text-white">
-                          {formatZar(deal.totalAmount)}
-                        </td>
-                        <td className="px-4 py-3">
-                          {deal.temperature === "hot" ? (
-                            <span className="rounded-full border border-rose-500/40 bg-rose-950/60 px-2 py-0.5 text-[10px] font-bold uppercase text-rose-300">
-                              🔥 HOT
-                            </span>
-                          ) : deal.temperature === "warm" ? (
-                            <span className="rounded-full border border-amber-500/40 bg-amber-950/60 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-300">
-                              WARM
-                            </span>
-                          ) : (
-                            <span className="rounded-full border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-[10px] font-bold uppercase text-zinc-400">
-                              NORMAL
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <Button size="xs" variant="ghost" className="text-zinc-400 hover:text-white">
-                            Inspect →
-                          </Button>
-                        </td>
-                      </tr>
-                    )
+                    );
                   })}
                 </tbody>
               </table>
             </div>
-          </div>
-        ) : (
-          /* ---------------- Board View (Kanban with Exact Video Cards) ---------------- */
-          <div className="flex h-full gap-3 p-3 overflow-x-auto min-w-max">
-            {visibleStages.map((stage) => {
-              const stageDeals = filteredDeals.filter((d) => d.status === stage.key)
-              const stageTotalAmount = stageDeals.reduce((sum, d) => sum + (d.totalAmount || 0), 0)
-              const isDragOver = dragOverStage === stage.key
 
-              return (
-                <div
-                  key={stage.key}
-                  onDragOver={(e) => handleDragOverColumn(e, stage.key)}
-                  onDrop={(e) => handleDropColumn(e, stage.key)}
-                  className={cn(
-                    "flex h-full w-[275px] shrink-0 flex-col rounded-xl border bg-[#0e1218]/90 transition-all",
-                    isDragOver
-                      ? "border-emerald-500/60 bg-emerald-950/15 shadow-[0_0_20px_rgba(16,185,129,0.15)]"
-                      : "border-zinc-800/80"
-                  )}
-                >
-                  {/* Column Header */}
-                  <div className="flex shrink-0 items-center justify-between border-b border-zinc-800/80 px-3.5 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <span className={cn("size-2.5 rounded-full ring-4", stage.dotColor, stage.ringColor)} />
-                      <span className="text-xs font-bold uppercase tracking-wider text-zinc-200">
-                        {stage.label}
-                      </span>
-                      <span className="rounded-full bg-zinc-800/90 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-zinc-300">
-                        {stageDeals.length}
-                      </span>
-                    </div>
-                    <span className="font-mono text-xs font-medium text-zinc-400">
-                      {formatZar(stageTotalAmount)} ZAR
-                    </span>
-                  </div>
-
-                  {/* Cards Container */}
-                  <div className="flex-1 space-y-2.5 overflow-y-auto p-2.5">
-                    {stageDeals.length === 0 ? (
-                      /* Empty State matching frame_030.png */
-                      <div className="flex min-h-[140px] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800/80 bg-zinc-950/30 p-6 text-center select-none">
-                        <Package className="mb-2 size-6 text-zinc-600 stroke-[1.5]" />
-                        <span className="text-xs font-medium text-zinc-500">Drop deals here</span>
-                      </div>
-                    ) : (
-                      stageDeals.map((deal) => {
-                        const isDragging = draggingDealId === deal._id
-                        const buyerName = deal.contact?.name || "Private Buyer"
-                        const initials = getInitials(buyerName)
-                        const vehText = deal.vehicle?.make
-                          ? `${deal.vehicle.year || 2020} ${deal.vehicle.make} ${deal.vehicle.model}`
-                          : deal.requestedParts?.[0]?.description || "AutoFit Deal"
-
-                        return (
-                          <div
-                            key={deal._id}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, deal._id)}
-                            onDragEnd={handleDragEnd}
-                            onClick={() => setSelectedDeal(deal)}
-                            className={cn(
-                              "group relative cursor-grab select-none rounded-xl border bg-[#13171e] p-3 transition-all hover:border-zinc-700/80 hover:bg-[#171d27] active:cursor-grabbing",
-                              isDragging
-                                ? "scale-95 border-emerald-500/60 opacity-60 shadow-xl"
-                                : "border-zinc-800/90 shadow-sm"
-                            )}
-                          >
-                            {/* Card Top Row: Avatar Initials + Name + Temperature Pill */}
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-zinc-700/70 bg-zinc-800 font-bold text-[11px] text-white">
-                                  {initials}
-                                </div>
-                                <div className="min-w-0">
-                                  <span className="block truncate text-xs font-semibold text-zinc-100 group-hover:text-white">
-                                    {buyerName}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Temperature Tag */}
-                              <div className="shrink-0">
-                                {deal.temperature === "hot" ? (
-                                  <span className="flex items-center gap-1 rounded-full border border-rose-500/40 bg-rose-950/70 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-rose-300 shadow-[0_0_8px_rgba(244,63,94,0.2)]">
-                                    🔥 HOT
-                                  </span>
-                                ) : deal.temperature === "warm" ? (
-                                  <span className="rounded-full border border-amber-500/40 bg-amber-950/70 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300">
-                                    WARM
-                                  </span>
-                                ) : (
-                                  <span className="rounded-full border border-zinc-700/70 bg-zinc-800/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-400">
-                                    NORMAL
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Subline: Phone & Live Time indicator */}
-                            <div className="mt-1 flex items-center gap-1.5 text-[10px] text-zinc-400">
-                              <span className="font-mono">{deal.contact?.phone}</span>
-                              <span>·</span>
-                              <span>{timeAgo(deal.updatedAt)}</span>
-                              <span>·</span>
-                              <span className="flex items-center gap-1 font-medium text-emerald-400">
-                                <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                Live
-                              </span>
-                            </div>
-
-                            {/* Vehicle Tag with Car Icon */}
-                            <div className="my-2 flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-950/70 px-2 py-1 text-xs text-zinc-300">
-                              <Car className="size-3.5 shrink-0 text-emerald-400" />
-                              <span className="truncate font-medium">{vehText}</span>
-                            </div>
-
-                            {/* Bottom Row: Price on Left + Interactive 5-Stage Progression Dots on Right */}
-                            <div className="mt-2.5 flex items-center justify-between pt-1">
-                              {/* Price */}
-                              <div className="font-mono text-xs font-bold text-zinc-100">
-                                {formatZar(deal.totalAmount)}
-                              </div>
-
-                              {/* Interactive 5 Stage Dots matching video (Clicking any jumps stage!) */}
-                              <div
-                                className="flex items-center gap-1.5"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {CRM_STAGES.slice(0, 5).map((s, dotIdx) => {
-                                  const isCurrent = deal.status === s.key
-                                  return (
-                                    <button
-                                      key={s.key}
-                                      type="button"
-                                      title={`Jump to ${s.label}`}
-                                      onClick={() => handleMoveDeal(deal._id, s.key)}
-                                      className={cn(
-                                        "transition-all duration-150 rounded-full",
-                                        isCurrent
-                                          ? cn("size-3 scale-110 ring-2", s.dotColor, s.ringColor)
-                                          : "size-2 bg-zinc-700 hover:scale-125 hover:bg-zinc-500"
-                                      )}
-                                    />
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* =========================================================================
-          DEAL INSPECTOR DRAWER (Sheet sliding smoothly from right)
-          ========================================================================= */}
-      <Sheet open={!!selectedDeal} onOpenChange={(open) => !open && setSelectedDeal(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-md border-l border-zinc-800 bg-[#0d1117] p-0 text-zinc-100">
-          {selectedDeal && (
-            <div className="flex h-full flex-col">
-              {/* Drawer Header */}
-              <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4 bg-zinc-950/80">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-9 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-800 font-bold text-sm text-white">
-                    {getInitials(selectedDeal.contact?.name || "AP")}
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-white">{selectedDeal.contact?.name}</h3>
-                    <p className="text-xs text-zinc-400 font-mono">{selectedDeal.contact?.phone}</p>
-                  </div>
-                </div>
-                <Button
+            {/* Pagination Footer */}
+            <div className="h-10 px-4 border-t border-[#25231f] bg-[#141310] flex items-center justify-between text-xs font-mono text-[#8e8a82] shrink-0">
+              <span>
+                Showing {directoryPage * DIRECTORY_PAGE_SIZE + 1}–
+                {Math.min(
+                  (directoryPage + 1) * DIRECTORY_PAGE_SIZE,
+                  filteredContacts.length
+                )}{" "}
+                of {filteredContacts.length} Contacts
+              </span>
+              <div className="flex items-center gap-2">
+                <button
                   type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => setSelectedDeal(null)}
-                  className="text-zinc-400 hover:text-white"
+                  disabled={directoryPage === 0}
+                  onClick={() => setDirectoryPage((p) => Math.max(0, p - 1))}
+                  className="px-3 py-1 rounded-lg bg-[#22201c] hover:bg-[#2c2924] disabled:opacity-40 text-white flex items-center gap-1"
                 >
-                  <X className="size-4" />
-                </Button>
+                  <ChevronLeft className="h-3.5 w-3.5" /> Previous
+                </button>
+                <span className="text-white">
+                  Page {directoryPage + 1} of {totalDirectoryPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={directoryPage + 1 >= totalDirectoryPages}
+                  onClick={() =>
+                    setDirectoryPage((p) => Math.min(totalDirectoryPages - 1, p + 1))
+                  }
+                  className="px-3 py-1 rounded-lg bg-[#22201c] hover:bg-[#2c2924] disabled:opacity-40 text-white flex items-center gap-1"
+                >
+                  Next <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ────────────────────────────────────────────────────────── */}
+      {/* ADD NEW CONTACT MODAL                                      */}
+      {/* ────────────────────────────────────────────────────────── */}
+      {showAddModal && (
+        <div
+          onClick={() => setShowAddModal(false)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="max-w-md w-full rounded-2xl bg-[#181714] border border-[#35312b] p-6 space-y-4 shadow-2xl"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#292621]">
+              <div>
+                <h3 className="text-sm font-bold text-[#f5f2eb]">
+                  Add Contact to AutoFame CRM
+                </h3>
+                <p className="text-[11px] text-[#8e8a82]">
+                  Saves permanently to Convex CRM &amp; WhatsApp Directory
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="text-[#8e8a82] hover:text-white p-1"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="text-[10px] font-mono uppercase text-[#8e8a82] block mb-1">
+                  Contact Full Name *
+                </label>
+                <input
+                  type="text"
+                  value={addName}
+                  onChange={(e) => setAddName(e.target.value)}
+                  placeholder="e.g. Sipho Ndlovu"
+                  className="w-full bg-[#11100e] border border-[#33302a] rounded-xl px-3 py-2 text-white"
+                />
               </div>
 
-              {/* Drawer Body */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-5">
-                {/* Stage Progression Stepper */}
+              <div>
+                <label className="text-[10px] font-mono uppercase text-[#8e8a82] block mb-1">
+                  WhatsApp / Mobile Phone Number *
+                </label>
+                <input
+                  type="text"
+                  value={addPhone}
+                  onChange={(e) => setAddPhone(e.target.value)}
+                  placeholder="e.g. +27 82 555 1234 or 082 555 1234"
+                  className="w-full bg-[#11100e] border border-[#33302a] rounded-xl px-3 py-2 font-mono text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">
+                  <label className="text-[10px] font-mono uppercase text-[#8e8a82] block mb-1">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={addEmail}
+                    onChange={(e) => setAddEmail(e.target.value)}
+                    placeholder="client@email.co.za"
+                    className="w-full bg-[#11100e] border border-[#33302a] rounded-xl px-3 py-2 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-mono uppercase text-[#8e8a82] block mb-1">
                     Pipeline Stage
                   </label>
-                  <div className="grid grid-cols-5 gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/90 p-1">
-                    {CRM_STAGES.slice(0, 5).map((st) => {
-                      const isCurrent = selectedDeal.status === st.key
-                      return (
-                        <button
-                          key={st.key}
-                          type="button"
-                          onClick={() => handleMoveDeal(selectedDeal._id, st.key)}
-                          className={cn(
-                            "flex flex-col items-center justify-center rounded-md py-1.5 text-[9px] font-bold transition-all",
-                            isCurrent
-                              ? cn(st.dotColor, "text-zinc-950 shadow-sm")
-                              : "text-zinc-400 hover:bg-zinc-850 hover:text-white"
-                          )}
-                        >
-                          <span className={cn("size-1.5 rounded-full mb-1", isCurrent ? "bg-zinc-950" : st.dotColor)} />
-                          <span className="truncate max-w-full px-0.5">{st.label.split(" ")[0]}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* Vehicle & Part Interest */}
-                <div className="rounded-xl border border-zinc-800 bg-[#12161f] p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-                      Vehicle &amp; Fitment
-                    </span>
-                    <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 text-[10px]">
-                      VIN Verified
-                    </Badge>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Car className="size-4 text-emerald-400" />
-                    <span className="text-sm font-semibold text-white">
-                      {selectedDeal.vehicle?.year} {selectedDeal.vehicle?.make} {selectedDeal.vehicle?.model}
-                    </span>
-                  </div>
-
-                  {selectedDeal.vinNumber && (
-                    <div className="font-mono text-xs text-zinc-400 bg-zinc-950/80 px-2.5 py-1 rounded border border-zinc-800/80">
-                      VIN: {selectedDeal.vinNumber}
-                    </div>
-                  )}
-
-                  <div className="pt-2 border-t border-zinc-800/60">
-                    <span className="text-[11px] text-zinc-400 block mb-1">Part / Line Items:</span>
-                    <div className="space-y-1">
-                      {selectedDeal.requestedParts?.map((part, idx) => (
-                        <div key={idx} className="flex justify-between text-xs text-zinc-300">
-                          <span>{part.quantity}x {part.description}</span>
-                          <span className="font-mono font-medium text-white">{formatZar(part.unitPrice || 0)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Financial Summary */}
-                <div className="rounded-xl border border-zinc-800 bg-[#12161f] p-4 space-y-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 block mb-1">
-                    Financial Summary (ZAR)
-                  </span>
-                  <div className="flex justify-between text-xs text-zinc-400">
-                    <span>Base Subtotal</span>
-                    <span className="font-mono">{formatZar(selectedDeal.totalAmount * 0.85)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs text-zinc-400">
-                    <span>15% SA VAT</span>
-                    <span className="font-mono">{formatZar(selectedDeal.totalAmount * 0.15)}</span>
-                  </div>
-                  {selectedDeal.coreDepositTotal ? (
-                    <div className="flex justify-between text-xs text-amber-400">
-                      <span>Refundable Core Deposit</span>
-                      <span className="font-mono">{formatZar(selectedDeal.coreDepositTotal)}</span>
-                    </div>
-                  ) : null}
-                  <div className="flex justify-between text-sm font-bold text-white pt-2 border-t border-zinc-800">
-                    <span>Total Deal Value</span>
-                    <span className="font-mono text-emerald-400">{formatZar(selectedDeal.totalAmount)}</span>
-                  </div>
-                </div>
-
-                {/* Quick Actions */}
-                <div className="space-y-2">
-                  <a
-                    href={`https://wa.me/${selectedDeal.contact?.phone.replace(/[^\d]/g, "")}?text=${encodeURIComponent(`Hi ${selectedDeal.contact?.name}, this is AutoPulse regarding your quote for ${selectedDeal.vehicle?.make || "parts"}.`)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 py-2.5 text-xs font-semibold text-zinc-950 transition-colors hover:bg-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.25)]"
+                  <select
+                    value={addStage}
+                    onChange={(e) => setAddStage(e.target.value as PipelineStage)}
+                    className="w-full bg-[#11100e] border border-[#33302a] rounded-xl px-3 py-2 text-white"
                   >
-                    <MessageCircle className="size-4" />
-                    <span>Open WhatsApp Chat ({selectedDeal.contact?.phone})</span>
-                  </a>
-
-                  {selectedDeal.paymentLink && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(selectedDeal.paymentLink!)
-                        toast.add({ title: "Link Copied", description: "Payment link copied to clipboard." })
-                      }}
-                      className="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-700 bg-zinc-850 py-2 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
-                    >
-                      <Copy className="size-3.5" />
-                      <span>Copy Payment Link</span>
-                    </button>
-                  )}
+                    {PIPELINE_STAGES.map((st) => (
+                      <option key={st.id} value={st.id}>
+                        {st.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
 
-      {/* =========================================================================
-          + CONTACT MODAL (Dialog)
-          ========================================================================= */}
-      <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
-        <DialogContent className="max-w-md border-zinc-800 bg-[#0e1218] text-zinc-100 sm:rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-white flex items-center gap-2">
-              <Plus className="size-4 text-emerald-400" />
-              <span>Add New Contact &amp; Deal</span>
-            </DialogTitle>
-            <DialogDescription className="text-xs text-zinc-400">
-              Create a new customer profile and immediately inject a deal into the pipeline.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleCreateLead} className="space-y-3 pt-2">
-            <div>
-              <label className="text-[11px] font-semibold text-zinc-300">Client / Buyer Name</label>
-              <Input
-                required
-                placeholder="e.g. Sipho Dlamini or Weja (wellew)"
-                value={newLeadForm.clientName}
-                onChange={(e) => setNewLeadForm({ ...newLeadForm, clientName: e.target.value })}
-                className="mt-1 h-8 border-zinc-800 bg-zinc-950 text-xs text-white"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[11px] font-semibold text-zinc-300">Phone (WhatsApp)</label>
-                <Input
-                  required
-                  placeholder="+27 76 073 7452"
-                  value={newLeadForm.clientPhone}
-                  onChange={(e) => setNewLeadForm({ ...newLeadForm, clientPhone: e.target.value })}
-                  className="mt-1 h-8 border-zinc-800 bg-zinc-950 font-mono text-xs text-white"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-semibold text-zinc-300">Company (Optional)</label>
-                <Input
-                  placeholder="e.g. Apex Diesel Workshop"
-                  value={newLeadForm.companyName}
-                  onChange={(e) => setNewLeadForm({ ...newLeadForm, companyName: e.target.value })}
-                  className="mt-1 h-8 border-zinc-800 bg-zinc-950 text-xs text-white"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="text-[11px] font-semibold text-zinc-300">Year</label>
-                <Input
-                  placeholder="2018"
-                  value={newLeadForm.vehicleYear}
-                  onChange={(e) => setNewLeadForm({ ...newLeadForm, vehicleYear: e.target.value })}
-                  className="mt-1 h-8 border-zinc-800 bg-zinc-950 text-xs text-white"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-semibold text-zinc-300">Make</label>
-                <Input
-                  placeholder="Ford"
-                  value={newLeadForm.vehicleMake}
-                  onChange={(e) => setNewLeadForm({ ...newLeadForm, vehicleMake: e.target.value })}
-                  className="mt-1 h-8 border-zinc-800 bg-zinc-950 text-xs text-white"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-semibold text-zinc-300">Model</label>
-                <Input
-                  placeholder="Focus 1.5"
-                  value={newLeadForm.vehicleModel}
-                  onChange={(e) => setNewLeadForm({ ...newLeadForm, vehicleModel: e.target.value })}
-                  className="mt-1 h-8 border-zinc-800 bg-zinc-950 text-xs text-white"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-[11px] font-semibold text-zinc-300">Parts / Deal Description</label>
-              <Input
-                placeholder="e.g. 2018 FORD FOCUS Transmission Assembly"
-                value={newLeadForm.partDescription}
-                onChange={(e) => setNewLeadForm({ ...newLeadForm, partDescription: e.target.value })}
-                className="mt-1 h-8 border-zinc-800 bg-zinc-950 text-xs text-white"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[11px] font-semibold text-zinc-300">Value (ZAR)</label>
-                <Input
-                  placeholder="129900"
-                  value={newLeadForm.estimatedAmount}
-                  onChange={(e) => setNewLeadForm({ ...newLeadForm, estimatedAmount: e.target.value })}
-                  className="mt-1 h-8 border-zinc-800 bg-zinc-950 font-mono text-xs text-white"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-semibold text-zinc-300">Initial Stage</label>
+                <label className="text-[10px] font-mono uppercase text-[#8e8a82] block mb-1">
+                  Interested Showroom Vehicle
+                </label>
                 <select
-                  value={newLeadForm.stage}
-                  onChange={(e) => setNewLeadForm({ ...newLeadForm, stage: e.target.value as StageKey })}
-                  className="mt-1 h-8 w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 text-xs text-white focus:outline-none"
+                  value={addCarId || ""}
+                  onChange={(e) => setAddCarId(Number(e.target.value))}
+                  className="w-full bg-[#11100e] border border-[#33302a] rounded-xl px-3 py-2 text-white"
                 >
-                  {CRM_STAGES.map((s) => (
-                    <option key={s.key} value={s.key}>
-                      {s.label}
+                  {realCars.map((c: any) => (
+                    <option key={c.id} value={c.id}>
+                      {c.year} {c.make} {c.model} — R{Number(c.price || 0).toLocaleString()} ZAR
                     </option>
                   ))}
                 </select>
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#292621]">
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
-                onClick={() => setIsContactDialogOpen(false)}
-                className="text-zinc-400"
+                onClick={() => setShowAddModal(false)}
+                className="text-xs text-[#8e8a82] hover:text-white"
               >
                 Cancel
               </Button>
               <Button
-                type="submit"
-                size="sm"
-                disabled={isSubmittingLead}
-                className="bg-emerald-500 font-semibold text-zinc-950 hover:bg-emerald-400"
+                type="button"
+                onClick={handleCreateContact}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl px-4"
               >
-                {isSubmittingLead ? "Adding..." : "Add to Pipeline"}
+                + Save &amp; Open in CRM
               </Button>
             </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </div>
+      )}
     </div>
-  )
+  );
 }

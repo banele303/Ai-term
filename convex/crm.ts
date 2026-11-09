@@ -795,3 +795,150 @@ export const deleteDeal = mutation({
     return { success: true }
   },
 })
+
+// ---------------------------------------------------------------------------
+// CRM Workspace & Contact Management (Compatible with AdvanceFame Full-Stack)
+// ---------------------------------------------------------------------------
+
+export const getCrmWorkspace = query({
+  args: {},
+  handler: async (ctx) => {
+    const [contacts, deals, catalog] = await Promise.all([
+      ctx.db.query("crm_contacts").take(100),
+      ctx.db.query("deals_and_quotes").order("desc").take(50),
+      ctx.db.query("parts_catalog").take(25),
+    ])
+
+    const dealMap = new Map<string, (typeof deals)[0]>()
+    for (const d of deals) {
+      if (!dealMap.has(d.contactId)) dealMap.set(d.contactId, d)
+    }
+
+    const stageMap: Record<string, string> = {
+      new_rfq: "NEW_LEAD",
+      fitment_verified: "CONTACTED",
+      quoted: "QUOTE_SENT",
+      awaiting_payment: "FINANCE_APP",
+      fulfilled: "CLOSED_WON",
+      lost: "CLOSED_LOST",
+    }
+
+    const crmContacts = contacts.map((c, idx) => {
+      const deal = dealMap.get(c._id)
+      const stage = deal?.status ? stageMap[deal.status] || "CONTACTED" : "NEW_LEAD"
+      const phoneDigits = c.phone?.replace(/\D/g, "") || `2770000000${idx}`
+      return {
+        contactKey: phoneDigits,
+        chatId: `${phoneDigits}@s.whatsapp.net`,
+        name: c.name,
+        phone: c.phone ? `+${c.phone}` : `+${phoneDigits}`,
+        email: c.email || "",
+        idNumber: "",
+        address: "Johannesburg, Gauteng",
+        employerName: c.companyName || "",
+        jobTitle: "",
+        monthlyIncomeGross: 0,
+        monthlyExpenses: 0,
+        stage,
+        priority: c.leadScore > 50 ? "HOT" : "NORMAL",
+        source: c.source?.toUpperCase() || "WHATSAPP",
+        assignedCarId: idx + 1,
+        assignedCarName: deal?.vehicle
+          ? `${deal.vehicle.year || 2024} ${deal.vehicle.make || "Toyota"} ${deal.vehicle.model || "Hilux GD6"}`
+          : "2024 Toyota Rumion 1.5 SX Auto",
+        dealValueZar: deal?.totalAmount || 249900,
+        depositZar: deal?.coreDepositTotal || 25000,
+        lastMessage: "Inbound WhatsApp RFQ & Fitment Inquiry",
+        lastContactedLabel: "Recent Chat",
+        lastContactedAt: new Date(c.lastInboundAt || Date.now()).toISOString(),
+        isRecentChat: true,
+        notes: deal?.notes || "",
+        ficaDocsCount: 0,
+        sortOrder: idx,
+      }
+    })
+
+    const cars = catalog.map((p, idx) => ({
+      id: idx + 1,
+      make: p.category || "Toyota",
+      model: p.name,
+      year: 2024,
+      price: p.price || 249900,
+      mileage: 15000,
+      status: "AVAILABLE",
+    }))
+
+    return {
+      crmContacts,
+      cars,
+      financings: [],
+      inquiries: [],
+      testDrives: [],
+      sales: [],
+      crmEvents: [],
+    }
+  },
+})
+
+export const upsertCrmContact = mutation({
+  args: {
+    contactKey: v.string(),
+    chatId: v.string(),
+    name: v.string(),
+    phone: v.string(),
+    email: v.optional(v.string()),
+    idNumber: v.optional(v.string()),
+    address: v.optional(v.string()),
+    employerName: v.optional(v.string()),
+    jobTitle: v.optional(v.string()),
+    monthlyIncomeGross: v.optional(v.number()),
+    monthlyExpenses: v.optional(v.number()),
+    stage: v.optional(v.string()),
+    priority: v.optional(v.string()),
+    source: v.optional(v.string()),
+    assignedCarId: v.optional(v.number()),
+    assignedCarName: v.optional(v.string()),
+    dealValueZar: v.optional(v.number()),
+    depositZar: v.optional(v.number()),
+    lastMessage: v.optional(v.string()),
+    lastContactedLabel: v.optional(v.string()),
+    lastContactedAt: v.optional(v.string()),
+    isRecentChat: v.optional(v.boolean()),
+    notes: v.optional(v.string()),
+    ficaDocsCount: v.optional(v.number()),
+    pipelineOrder: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const rawDigits = args.phone.replace(/\D/g, "") || args.contactKey
+    const existing = await ctx.db
+      .query("crm_contacts")
+      .withIndex("by_phone", (q) => q.eq("phone", rawDigits))
+      .first()
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        name: args.name || existing.name,
+        companyName: args.employerName || existing.companyName,
+        email: args.email || existing.email,
+        lastInboundAt: Date.now(),
+      })
+      return existing._id
+    }
+
+    const newId = await ctx.db.insert("crm_contacts", {
+      name: args.name,
+      companyName: args.employerName,
+      type: "retail_b2c",
+      phone: rawDigits,
+      email: args.email,
+      socialHandles: {},
+      leadScore: args.priority === "HOT" ? 80 : 30,
+      lifetimeValue: args.dealValueZar || 0,
+      autopilot: true,
+      source: "whatsapp",
+      tags: ["pipeline", args.stage?.toLowerCase() || "new_lead"],
+    })
+
+    return newId
+  },
+})

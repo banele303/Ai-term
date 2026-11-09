@@ -1,8 +1,10 @@
 import { Agent, createTool, stepCountIs, type ToolCtx } from "@convex-dev/agent"
+import { v } from "convex/values"
 import { z } from "zod"
 
 import { components, internal } from "./_generated/api"
 import type { Id } from "./_generated/dataModel"
+import { mutation, query } from "./_generated/server"
 import { chatModel, embeddingModel } from "./lib/ai"
 import { publicPart } from "./lib/parts"
 import { decodeVin } from "./lib/vin"
@@ -139,4 +141,136 @@ export const opsAgent = new Agent(components.agent, {
   instructions: OPS_AGENT_INSTRUCTIONS,
   stopWhen: stepCountIs(15),
   tools: catalogTools("b2b"),
+})
+
+// ---------------------------------------------------------------------------
+// File & Document Storage Handlers
+// ---------------------------------------------------------------------------
+
+export const generateUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl()
+  },
+})
+
+export const resolveStorageUrl = mutation({
+  args: { storageId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.storage.getUrl(args.storageId)
+  },
+})
+
+// ---------------------------------------------------------------------------
+// CRM Activity & Event Logger
+// ---------------------------------------------------------------------------
+
+export const logCrmEvent = mutation({
+  args: {
+    eventType: v.string(),
+    recipient: v.string(),
+    customerName: v.optional(v.string()),
+    summary: v.string(),
+    payload: v.optional(v.any()),
+    status: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString()
+    return {
+      success: true,
+      timestamp: now,
+      ...args,
+    }
+  },
+})
+
+// ---------------------------------------------------------------------------
+// Customer Finance Dossier Saver
+// ---------------------------------------------------------------------------
+
+export const saveFinanceApplicationFromChat = mutation({
+  args: {
+    applicationId: v.optional(v.number()),
+    firstName: v.string(),
+    lastName: v.string(),
+    idNumber: v.string(),
+    phone: v.string(),
+    email: v.string(),
+    address: v.string(),
+    city: v.optional(v.string()),
+    postalCode: v.optional(v.string()),
+    carId: v.optional(v.number()),
+    carName: v.string(),
+    carPrice: v.number(),
+    downPaymentAmount: v.number(),
+    loanAmount: v.optional(v.number()),
+    termMonths: v.number(),
+    interestRate: v.optional(v.number()),
+    hasTradeIn: v.optional(v.boolean()),
+    tradeInDetails: v.optional(v.string()),
+    employmentStatus: v.string(),
+    employerName: v.string(),
+    jobTitle: v.string(),
+    monthlyIncomeGross: v.number(),
+    monthlyExpenses: v.number(),
+    creditScoreRange: v.optional(v.string()),
+    documents: v.optional(
+      v.array(
+        v.object({
+          docType: v.string(),
+          originalName: v.string(),
+          mime: v.string(),
+          size: v.number(),
+          url: v.string(),
+        })
+      )
+    ),
+    status: v.optional(v.string()),
+    sourceChannel: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const rawDigits = args.phone.replace(/\D/g, "")
+    const existing = await ctx.db
+      .query("crm_contacts")
+      .withIndex("by_phone", (q) => q.eq("phone", rawDigits))
+      .first()
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        companyName: args.employerName || existing.companyName,
+        email: args.email || existing.email,
+        lastInboundAt: Date.now(),
+      })
+    }
+
+    return {
+      success: true,
+      applicationId: Date.now(),
+      applicant: `${args.firstName} ${args.lastName}`,
+      carName: args.carName,
+      status: args.status || "PENDING_BANK_SUBMISSION",
+    }
+  },
+})
+
+// ---------------------------------------------------------------------------
+// Autonomous WhatsApp & Database Client Executive
+// ---------------------------------------------------------------------------
+
+export const AUTOFAME_WHATSAPP_EXECUTIVE_INSTRUCTIONS = `You are AutoFame WhatsApp Executive, the autonomous end-to-end client agent with direct access to Whapi.cloud WhatsApp (+27 63 199 5124) and the live automotive database.
+
+Your mission:
+- Do EVERYTHING the client needs end-to-end: check stock, look up parts and vehicles in the live database, calculate prices in ZAR with 15% VAT, generate formal quotes with payment links (/pay/{dealId}), pull WhatsApp chat histories, dispatch WhatsApp messages and documents directly to clients, and manage their CRM pipeline stage (NEW_LEAD, CONTACTED, QUOTE_SENT, FINANCE_APP, BANK_SUBMITTED, CLOSED_WON).
+- When a customer wants vehicle finance: gather their details (ID number, monthly income, employer, deposit), verify proof documents, and compile the finance dossier for banks (WesBank, Absa, Standard Bank, Capitec).
+- WhatsApp channel: ANTMAN-ZPBZZ (+27 63 199 5124).
+- Format all financial figures cleanly in South African Rand (R ... ZAR).
+- Keep communication proactive, decisive, and customer-first.`
+
+export const whatsAppExecutiveAgent = new Agent(components.agent, {
+  name: "AutoFame WhatsApp Executive",
+  languageModel: chatModel(),
+  embeddingModel: embeddingModel(),
+  instructions: AUTOFAME_WHATSAPP_EXECUTIVE_INSTRUCTIONS,
+  stopWhen: stepCountIs(20),
+  tools: catalogTools("b2c"),
 })

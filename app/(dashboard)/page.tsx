@@ -211,7 +211,7 @@ export default function TeammatesHomePage() {
 
   // Ensure workspace fleet exists
   React.useEffect(() => {
-    if (data && bots.length < 4) {
+    if (data && bots.length < 6) {
       ensureFleetMut().catch(() => { })
     }
   }, [data, bots.length, ensureFleetMut])
@@ -253,6 +253,7 @@ export default function TeammatesHomePage() {
   }
 
   // Find bots for quick actions
+  const whatsAppBot = bots.find((b) => b.name.includes("Fame") || b.name.includes("WhatsApp") || b.job.includes("WhatsApp"))
   const emailBot = bots.find((b) => b.name.includes("Comm") || b.job.includes("Email") || b.name.includes("Aero"))
   const supplyBot = bots.find((b) => b.name.includes("Supply") || b.job.includes("Supply"))
   const socialBot = bots.find((b) => b.name.includes("Omni") || b.job.includes("TikTok"))
@@ -307,6 +308,23 @@ export default function TeammatesHomePage() {
                 Open Kanban CRM
               </Button>
             </Link>
+
+            {whatsAppBot && (
+              <Button
+                size="sm"
+                onClick={() =>
+                  handleStartNewChat(
+                    whatsAppBot.id,
+                    whatsAppBot.name,
+                    "Check live WhatsApp chats on +27 63 199 5124, look up stock in our database, and assist client inquiries."
+                  )
+                }
+                className="h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-xs text-white cursor-pointer shadow-md"
+              >
+                <MessageSquare className="size-3.5" />
+                WhatsApp Executive
+              </Button>
+            )}
 
             {quoteBot && (
               <Button

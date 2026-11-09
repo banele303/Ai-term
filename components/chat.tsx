@@ -40,6 +40,8 @@ import { useDesktopPanel } from "@/components/desktop-panel"
 import { formatGoogleAccountLabel } from "@/components/gmail-connect-modal"
 import { PUTER_SCRIPT_SRC } from "@/lib/puter"
 import { useAgentRunner } from "@/components/agent-runner-provider"
+import { parseQuoteFromText } from "@/lib/quote-pdf"
+import { ChatQuoteCard } from "@/components/chat-quote-card"
 
 export function Chat({
   chatId,
@@ -231,7 +233,21 @@ export function Chat({
       const botNameLower = targetBot.name.toLowerCase()
       const botJobLower = targetBot.job.toLowerCase()
 
-      if (botNameLower.includes("comm") || botJobLower.includes("email") || botJobLower.includes("communication")) {
+      if (botNameLower.includes("fame") || botNameLower.includes("whatsapp") || botJobLower.includes("whatsapp") || botJobLower.includes("client")) {
+        botSpecialization = [
+          "=== DOMAIN FOCUS: AUTONOMOUS WHATSAPP CLIENT EXECUTIVE & LIVE DATABASE SPECIALIST ===",
+          "- You are AutoFame WhatsApp Executive, the autonomous client-servicing AI teammate with full live access to Whapi.cloud WhatsApp (+27 63 199 5124, Channel ANTMAN-ZPBZZ, Token gfsvMATZZV5XA5bOi71jCmhyxdE7STgO) and the live database.",
+          "- You do EVERYTHING the client needs end-to-end:",
+          "  1. Live Catalog & Fitment Lookup: Search parts, vehicles, OEM cross-references, stock, and fitment directly in our live database.",
+          "  2. Instant Formal Quotations: Generate priced quotes in South African Rand (ZAR) with 15% VAT and one-click payment links (/pay/{dealId}).",
+          "  3. WhatsApp Client Context & Inquiries: Access live conversations with clients (e.g. Precious +27 69 764 2905, Martha +27 83 732 4229, Weja +27 76 385 6479, +27 76 073 7452, +27 78 967 8343, Advance Auto, JD Auto Cars).",
+          "  4. Direct WhatsApp Message & Document Dispatch: Draft and dispatch messages, formal quotes, and PDF documents directly to any client's WhatsApp number.",
+          "  5. CRM Pipeline Progression: Progress deals through NEW_LEAD -> CONTACTED -> QUOTE_SENT -> FINANCE_APP -> BANK_SUBMITTED -> CLOSED_WON.",
+          "  6. Finance Dossier Compilation: Extract salary, employer, South African ID, and FICA proof documents (ID, Driver's License, 3 Months Bank Statements, Payslips, Proof of Address) and compile finance applications for WesBank, Absa, Standard Bank Stannic, and Capitec.",
+          "- When responding to client questions or user requests about clients, ALWAYS format line items, vehicle prices, and finance calculations using clean Markdown Tables (| Item | SKU / Model | Price (ZAR) | Stock / Status |).",
+          "- When drafting a WhatsApp dispatch, provide a clean blockquote (> ...) with the text and offer a direct 1-click wa.me link (https://wa.me/{phone}?text={encoded}).",
+        ].join("\n")
+      } else if (botNameLower.includes("comm") || botJobLower.includes("email") || botJobLower.includes("communication")) {
         botSpecialization = [
           "=== DOMAIN FOCUS: COMMUNICATIONS, EMAIL & CRM ===",
           "- Your primary specialty is managing all customer communications across Gmail, Outlook, and Whapi.cloud WhatsApp.",
@@ -294,15 +310,15 @@ export function Chat({
         botSpecialization = [
           "=== DOMAIN FOCUS: QUOTECRAFT AI • QUOTATIONS, DEALS & PDF ENGINE ===",
           "- Your primary specialty is instant generation of formal, branded PDF quotations and managing high-value automotive deal pipelines.",
-          "- You pull real-time part numbers, prices, and stock levels from the live catalog (e.g. Bosch alternators, Ferodo brake pads, Brembo discs, NGK spark plugs).",
-          "- When the user asks for a quotation, PDF quote, price estimate, or asks to quote a customer (e.g. Apex Autos, fleet, mechanic):",
-          "  1. State that you have activated the Quote Studio & PDF engine in the right console tab.",
-          "  2. Provide a full formal quotation breakdown: Quote Reference (e.g. QT-2026-0881), Client Name, Vehicle Specs (Make, Model, Year, VIN), Itemized line items table with Unit Price & Totals in ZAR, Subtotal, 15% South African VAT, and Grand Total.",
-          "  3. Provide the direct online payment & tracking link (/pay/{dealId}).",
-          "  4. Detail multi-channel dispatch options: 1-Click WhatsApp dispatch via Whapi.cloud, and 1-Click PDF dispatch via Gmail API.",
-          "  5. Detail or schedule the automated 24h stock hold reminder, 48h fitment verification, and 72h price guarantee expiration sequences.",
+          "- You pull real-time part numbers, prices, and stock levels from the live catalog (e.g. Toyota genuine headlights, Bosch alternators, Ferodo brake pads, Brembo discs, NGK spark plugs).",
+          "- When the user asks for a quotation, PDF quote, price estimate, or asks to quote a customer (e.g. Toyota headlight, Apex Autos, fleet, mechanic):",
+          "  1. State that you have searched the database, found the relevant part (e.g. AP-TOY-HL-0098 Toyota Genuine Front Headlight LH, ZAR 4,800, in stock: 12), and generated the formal quotation and modern white PDF.",
+          "  2. Provide a full formal quotation breakdown: Quote Reference (e.g. QT-2026-0882), Client Name, Vehicle Specs (Make, Model, Year, VIN), Markdown table with SKU, Description, Brand / Tier, Fitment, Price (ZAR), and Stock.",
+          "  3. List Totals: Subtotal in ZAR, 15% South African VAT, and Grand Total in ZAR.",
+          "  4. Provide multi-channel dispatch options (1-Click WhatsApp via Whapi, 1-Click PDF via Gmail) and automated follow-ups (24h stock hold, 48h price guarantee).",
+          "  5. Note that the official, modern white A4 PDF quotation with company logo is generated and ready to download via the 'Download PDF' button directly below your message.",
           "- Always present prices in South African Rand (ZAR) with clear 15% VAT calculation.",
-          "- Never say you cannot generate PDF quotes; you have an active PDF generation and print engine right in the right panel and dialog modal.",
+          "- Never say you cannot generate PDF quotes; you have an active PDF generation and print engine right in the right panel and interactive chat quote cards.",
         ].join("\n")
       } else {
         // AutoPulse Ops AI (Master Central Operations Dispatcher)
@@ -420,6 +436,11 @@ export function Chat({
                   ? botMap.get(message.targetBotId)
                   : undefined
 
+              const quoteData =
+                message.role === "assistant"
+                  ? parseQuoteFromText(message.text)
+                  : null
+
               return (
                 <Message
                   key={message.id}
@@ -445,6 +466,7 @@ export function Chat({
                       </div>
                     )}
                     <MessageResponse>{message.text}</MessageResponse>
+                    {quoteData && <ChatQuoteCard quote={quoteData} />}
                   </MessageContent>
                   <button
                     type="button"
@@ -470,7 +492,14 @@ export function Chat({
                 />
                 <MessageContent>
                   {currentRun.streamingText ? (
-                    <MessageResponse>{currentRun.streamingText}</MessageResponse>
+                    <>
+                      <MessageResponse>{currentRun.streamingText}</MessageResponse>
+                      {parseQuoteFromText(currentRun.streamingText) && (
+                        <ChatQuoteCard
+                          quote={parseQuoteFromText(currentRun.streamingText)!}
+                        />
+                      )}
+                    </>
                   ) : (
                     <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
                       <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />

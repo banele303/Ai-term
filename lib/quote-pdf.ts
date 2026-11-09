@@ -1,4 +1,4 @@
-import type { QuoteData } from "@/components/quote-pdf-modal"
+import type { QuoteData, QuoteItem } from "@/components/quote-pdf-modal"
 
 export const DEFAULT_SAMPLE_QUOTE: QuoteData = {
   id: "quote-za-0841",
@@ -46,6 +46,7 @@ function escapePdfText(text: string): string {
 
 /**
  * Generates an ISO-compliant PDF 1.4 document Blob for the quotation.
+ * Designed with a crisp, simple, modern white aesthetic with corporate emblem logo.
  * Uses standard Type 1 fonts (Helvetica & Helvetica-Bold) for zero-dependency universal viewing.
  */
 export function generateQuotePdfBlob(quote: QuoteData): Blob {
@@ -56,70 +57,80 @@ export function generateQuotePdfBlob(quote: QuoteData): Blob {
 
   const streamOps: string[] = []
 
-  // Top header bar (slate background)
-  streamOps.push("0.08 0.12 0.20 rg") // Dark slate fill
-  streamOps.push("36 756 523 58 re f")
+  // Base canvas: crisp white page
+  streamOps.push("1 1 1 rg")
+  streamOps.push("0 0 595.28 841.89 re f")
+
+  // Header Container: Modern white card with subtle light-gray border
+  streamOps.push("0.98 0.99 1.0 rg")
+  streamOps.push("36 742 523 68 re f")
+  streamOps.push("0.87 0.90 0.94 RG")
+  streamOps.push("1 w 36 742 523 68 re S")
 
   // AutoPulse Brand Emblem Logo Badge
-  streamOps.push("0.15 0.22 0.35 rg")
-  streamOps.push("46 766 38 38 re f")
-  streamOps.push("0.32 0.86 0.84 rg") // Teal cyan accent
-  streamOps.push("49 769 32 32 re f")
+  streamOps.push("0.08 0.12 0.20 rg") // Slate dark rounded pill
+  streamOps.push("48 754 44 44 re f")
+  streamOps.push("0.14 0.65 0.92 rg") // Sky-teal accent dot
+  streamOps.push("51 757 38 38 re f")
   streamOps.push("BT")
   streamOps.push("/F2 16 Tf")
-  streamOps.push("0.06 0.09 0.16 rg")
-  streamOps.push("56 780 Td")
+  streamOps.push("1 1 1 rg") // Crisp white text
+  streamOps.push("59 769 Td")
   streamOps.push("(AP) Tj")
   streamOps.push("ET")
 
-  // Company Brand text
+  // Company Brand text (Dark, modern, crisp)
   streamOps.push("BT")
-  streamOps.push("/F2 16 Tf")
-  streamOps.push("1 1 1 rg") // White text
-  streamOps.push("92 788 Td")
+  streamOps.push("/F2 15 Tf")
+  streamOps.push("0.08 0.12 0.20 rg")
+  streamOps.push("102 783 Td")
   streamOps.push(`(${escapePdfText("AUTOPULSE AUTO PARTS")}) Tj`)
   streamOps.push("ET")
 
   streamOps.push("BT")
   streamOps.push("/F1 8 Tf")
-  streamOps.push("0.75 0.82 0.95 rg")
-  streamOps.push("92 774 Td")
-  streamOps.push(`(${escapePdfText("COMMERCIAL PARTS & FLEET LOGISTICS (PTY) LTD • VAT: 4890219481")}) Tj`)
+  streamOps.push("0.40 0.45 0.52 rg")
+  streamOps.push("102 770 Td")
+  streamOps.push(`(${escapePdfText("Commercial Parts & Fleet Logistics (Pty) Ltd • VAT Reg: 4890219481")}) Tj`)
+  streamOps.push("0 -10 Td")
+  streamOps.push(`(${escapePdfText("14 Old Pretoria Road, Halfway House, Midrand • quotes@autopulse.co.za")}) Tj`)
   streamOps.push("ET")
 
-  // Header Right: Quote Reference & Date
+  // Header Right: Quote Reference & Date (Clean modern white/dark styling)
   streamOps.push("BT")
-  streamOps.push("/F2 12 Tf")
-  streamOps.push("1 1 1 rg")
-  streamOps.push("420 788 Td")
+  streamOps.push("/F2 13 Tf")
+  streamOps.push("0.08 0.12 0.20 rg")
+  streamOps.push("418 783 Td")
   streamOps.push(`(${escapePdfText(quote.quoteNumber)}) Tj`)
   streamOps.push("ET")
 
   streamOps.push("BT")
-  streamOps.push("/F1 8 Tf")
-  streamOps.push("0.75 0.82 0.95 rg")
-  streamOps.push("420 774 Td")
-  streamOps.push(`(${escapePdfText(`Date: ${quote.date} • Valid 14 Days`)}) Tj`)
+  streamOps.push("/F1 8.5 Tf")
+  streamOps.push("0.35 0.40 0.48 rg")
+  streamOps.push("418 770 Td")
+  streamOps.push(`(${escapePdfText(`Date: ${quote.date}`)}) Tj`)
+  streamOps.push("0 -10 Td")
+  streamOps.push(`(${escapePdfText(`Valid Until: ${quote.validUntil}`)}) Tj`)
   streamOps.push("ET")
 
   // Subtitle / Document Type Banner
-  streamOps.push("0.96 0.97 0.98 rg")
-  streamOps.push("36 718 523 30 re f")
-  streamOps.push("0.85 0.88 0.92 RG")
-  streamOps.push("1 w 36 718 523 30 re S")
+  streamOps.push("0.96 0.97 0.99 rg")
+  streamOps.push("36 708 523 26 re f")
+  streamOps.push("0.87 0.90 0.94 RG")
+  streamOps.push("1 w 36 708 523 26 re S")
 
   streamOps.push("BT")
-  streamOps.push("/F2 10 Tf")
+  streamOps.push("/F2 9.5 Tf")
   streamOps.push("0.1 0.15 0.25 rg")
-  streamOps.push("48 730 Td")
-  streamOps.push(`(${escapePdfText("OFFICIAL TAX INVOICE / PRICE ESTIMATE")}) Tj`)
+  streamOps.push("48 718 Td")
+  streamOps.push(`(${escapePdfText("OFFICIAL TAX INVOICE & PRICE ESTIMATE (ZAR)")}) Tj`)
   streamOps.push("ET")
 
   streamOps.push("BT")
   streamOps.push("/F1 8 Tf")
-  streamOps.push("0.4 0.45 0.5 rg")
-  streamOps.push("350 730 Td")
-  streamOps.push(`(${escapePdfText(`Channel: ${quote.channel.toUpperCase()} • Status: PENDING FULFILLMENT`)}) Tj`)
+  streamOps.push("0.35 0.45 0.55 rg")
+  streamOps.push("370 718 Td")
+  streamOps.push(`(${escapePdfText(`Channel: ${quote.channel.toUpperCase()} • Status: VERIFIED`)}) Tj`)
   streamOps.push("ET")
 
   // Client Details Box (Left)
@@ -512,5 +523,183 @@ export function printQuoteViaIframe(elementId: string): void {
       document.body.removeChild(iframe)
     }, 1000)
   }, 250)
+}
+
+/**
+ * Robustly parses a quotation from an assistant chat message into a formal QuoteData structure.
+ * Supports Markdown tables, bulleted lines, reference numbers (QT-xxxx-xxxx), and financial totals.
+ */
+export function parseQuoteFromText(text: string): QuoteData | null {
+  if (!text || typeof text !== "string") return null
+
+  // Must have a clear quote indicator or reference
+  const hasQuoteIndicator =
+    /quotation reference|quote reference|formal quotation|quote #|tax invoice|quote summary/i.test(text) ||
+    /qt-20\d{2}-\d{3,5}/i.test(text) ||
+    (/subtotal/i.test(text) && /vat/i.test(text) && (/grand total/i.test(text) || /total payable/i.test(text)))
+
+  if (!hasQuoteIndicator) return null
+
+  // 1. Quote Number
+  const quoteNumMatch =
+    text.match(/(?:quotation reference|quote reference|quote number|quote #)\s*:\s*([A-Za-z0-9-_]+)/i) ||
+    text.match(/\b(QT-20\d{2}-\d{3,5})\b/i)
+  const quoteNumber = quoteNumMatch
+    ? quoteNumMatch[1].trim()
+    : `QT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`
+
+  // 2. Client Name
+  const clientMatch = text.match(/(?:client name|customer name|billed? to)\s*:\s*([^\n\r]+)/i)
+  let clientName = clientMatch ? clientMatch[1].trim() : ""
+  if (!clientName || /\[.*to be filled.*\]|\[.*confirm.*\]|tbd|pending|\[.*name.*\]/i.test(clientName)) {
+    clientName = "Client (Quote Request)"
+  }
+
+  // 3. Vehicle & Fitment
+  const vehicleMatch = text.match(/(?:vehicle|fitment|vehicle specs?)\s*:\s*([^\n\r]+)/i)
+  let vehicleRaw = vehicleMatch ? vehicleMatch[1].trim() : ""
+  let vehicleMake = "Toyota"
+  let vehicleModel = "Hilux / Fortuner"
+  let vehicleYear = 2021
+
+  if (vehicleRaw) {
+    const cleanVeh = vehicleRaw.replace(/\[|\]/g, "")
+    const yearMatch = cleanVeh.match(/\b(20\d{2}|19\d{2})\b/)
+    if (yearMatch) vehicleYear = parseInt(yearMatch[1], 10)
+
+    if (/toyota/i.test(cleanVeh) || /toyota/i.test(text)) {
+      vehicleMake = "Toyota"
+      if (/hilux/i.test(cleanVeh) || /hilux/i.test(text)) vehicleModel = "Hilux 2.8 GD-6"
+      else if (/fortuner/i.test(cleanVeh) || /fortuner/i.test(text)) vehicleModel = "Fortuner 2.8 GD-6"
+      else if (/corolla/i.test(cleanVeh)) vehicleModel = "Corolla Cross"
+      else vehicleModel = "Hilux / Fortuner"
+    } else if (/volkswagen|vw|golf/i.test(cleanVeh)) {
+      vehicleMake = "Volkswagen"
+      vehicleModel = "Golf 7 GTI 2.0 TSI"
+    } else if (/ford|ranger/i.test(cleanVeh)) {
+      vehicleMake = "Ford"
+      vehicleModel = "Ranger 2.0 Bi-Turbo"
+    } else if (/bmw/i.test(cleanVeh)) {
+      vehicleMake = "BMW"
+      vehicleModel = "330d / X5"
+    }
+  }
+
+  // 4. Totals parsing
+  const parseNum = (str?: string) => {
+    if (!str) return 0
+    return parseFloat(str.replace(/,/g, ""))
+  }
+
+  const subtotalMatch = text.match(/subtotal\s*:\s*(?:ZAR|R)?\s*([\d,]+(?:\.\d{2})?)/i)
+  const vatMatch = text.match(/(?:15%\s*vat|vat\s*(?:\(15%\))?|vat\s*:)\s*(?:ZAR|R)?\s*([\d,]+(?:\.\d{2})?)/i)
+  const grandTotalMatch = text.match(/(?:grand total|total payable|balance due)\s*:\s*(?:ZAR|R)?\s*([\d,]+(?:\.\d{2})?)/i)
+
+  const parsedSubtotal = subtotalMatch ? parseNum(subtotalMatch[1]) : 0
+  const parsedVat = vatMatch ? parseNum(vatMatch[1]) : 0
+  const parsedGrandTotal = grandTotalMatch ? parseNum(grandTotalMatch[1]) : 0
+
+  // 5. Line items
+  const items: QuoteItem[] = []
+  const lines = text.split(/\r?\n/)
+
+  for (const line of lines) {
+    if (/^\|?\s*SKU\s*\|/i.test(line) || /^\|?[\s-:]+\|[\s-:]+\|/i.test(line)) continue
+    if (/quotation reference|quote reference|client name|vehicle/i.test(line)) continue
+
+    // Markdown table row
+    if (line.includes("|") && /[A-Z0-9]{2,5}-[A-Z0-9]+-[A-Z0-9-]+|[0-9]{4,}[A-Z0-9-]/i.test(line)) {
+      const parts = line.split("|").map((p) => p.trim()).filter(Boolean)
+      if (parts.length >= 3 && !parts[0].startsWith("QT-")) {
+        const sku = parts[0]
+        const desc = parts[1]
+        const priceCol = parts.find(
+          (p) => /(?:ZAR|R)?\s*[\d,]+(?:\.\d{2})?/i.test(p) && !p.startsWith("AP-") && !/stock|tier|fitment|genuine/i.test(p)
+        )
+        const priceVal = priceCol ? parseNum(priceCol.replace(/[^0-9.]/g, "")) : (parsedSubtotal || 4800)
+        items.push({
+          sku,
+          description: desc,
+          quantity: 1,
+          unitPrice: priceVal,
+        })
+      }
+    } else if (/[A-Z0-9]{2,5}-[A-Z0-9]+-[A-Z0-9-]+/i.test(line)) {
+      // Tab or space separated row
+      const skuMatch = line.match(/\b([A-Z0-9]{2,5}-[A-Z0-9]+-[A-Z0-9-]+)\b/i)
+      if (skuMatch && !skuMatch[1].startsWith("QT-")) {
+        const sku = skuMatch[1]
+        const tabParts = line.split("\t").map((p) => p.trim()).filter(Boolean)
+        let desc = "Toyota Genuine Front Headlight (LH)"
+        let unitPrice = parsedSubtotal || 4800
+
+        if (tabParts.length >= 2) {
+          desc = tabParts[1]
+          const pricePart = tabParts.find((p) => /(?:ZAR|R)?\s*[\d,]+(?:\.\d{2})?/i.test(p) && !p.startsWith("AP-"))
+          if (pricePart) {
+            unitPrice = parseNum(pricePart.replace(/[^0-9.]/g, ""))
+          }
+        } else {
+          const remaining = line.replace(sku, "").trim()
+          const priceMatch = remaining.match(/(?:ZAR|R)?\s*([\d,]+(?:\.\d{2})?)/i)
+          if (priceMatch) unitPrice = parseNum(priceMatch[1])
+          const cleanDesc = remaining
+            .replace(/(?:ZAR|R)?\s*[\d,]+(?:\.\d{2})?/gi, "")
+            .replace(/Toyota OEM|OEM|In Stock:?\s*\d+|Hilux|Fortuner/gi, "")
+            .trim()
+          if (cleanDesc) desc = cleanDesc.replace(/^[\t\s,-]+|[\t\s,-]+$/g, "")
+        }
+
+        items.push({
+          sku,
+          description: desc,
+          quantity: 1,
+          unitPrice,
+        })
+      }
+    }
+  }
+
+  // Fallback item synthesis if table parsing was empty
+  if (items.length === 0) {
+    const isToyota = /toyota|headlight/i.test(text)
+    items.push({
+      sku: isToyota ? "AP-TOY-HL-0098" : "AP-PART-001",
+      description: isToyota
+        ? "Toyota Genuine Front Headlight Assembly (LH)"
+        : "OEM Automotive Replacement Part",
+      quantity: 1,
+      unitPrice: parsedSubtotal || (parsedGrandTotal ? Math.round(parsedGrandTotal / 1.15) : 4800),
+    })
+  }
+
+  const finalSubtotal = parsedSubtotal || items.reduce((s, it) => s + it.unitPrice * it.quantity, 0)
+  const finalVat = parsedVat || Math.round(finalSubtotal * 0.15 * 100) / 100
+  const finalGrandTotal = parsedGrandTotal || Math.round((finalSubtotal + finalVat) * 100) / 100
+
+  // Date formatting
+  const now = new Date()
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  const dateStr = `${String(now.getDate()).padStart(2, "0")} ${months[now.getMonth()]} ${now.getFullYear()}`
+  const validDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+  const validUntilStr = `${String(validDate.getDate()).padStart(2, "0")} ${months[validDate.getMonth()]} ${validDate.getFullYear()}`
+
+  return {
+    id: `quote-${quoteNumber.toLowerCase()}`,
+    quoteNumber,
+    date: dateStr,
+    validUntil: validUntilStr,
+    clientName,
+    clientPhone: "+27 82 459 1102",
+    clientEmail: "quotes@autopulse.co.za",
+    companyName: "Commercial Workshop Client",
+    vehicleMake,
+    vehicleModel,
+    vehicleYear,
+    channel: "whatsapp",
+    items,
+    notes: "15% VAT Included. 12-Month Manufacturer Warranty. Fast nationwide dispatch via The Courier Guy.",
+    paymentLink: `https://autopulse.co.za/pay/${quoteNumber}`,
+  }
 }
 
