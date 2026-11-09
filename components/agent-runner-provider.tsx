@@ -5,7 +5,7 @@ import { useMutation } from "convex/react"
 import { toast } from "@/components/ui/toast"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
-import { streamPuterReply } from "@/lib/puter"
+import { streamDeepSeekReply } from "@/lib/deepseek"
 import {
   Dialog,
   DialogContent,
@@ -159,7 +159,7 @@ export function AgentRunnerProvider({ children }: { children: React.ReactNode })
       let accumulated = ""
 
       try {
-        await streamPuterReply(
+        await streamDeepSeekReply(
           conversationHistory,
           (chunk) => {
             if (ctrl.signal.aborted) return

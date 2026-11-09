@@ -2,7 +2,8 @@ import { createOpenAI } from "@ai-sdk/openai"
 import { embed, embedMany } from "ai"
 
 // DeepSeek is fully compatible with the OpenAI API format at https://api.deepseek.com
-const deepseekApiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY || ""
+const deepseekApiKey =
+  process.env.DEEPSEEK_API_KEY || "sk-5d855e080e0b4a8c870a4f9620d579b6"
 
 export const deepseek = createOpenAI({
   baseURL: "https://api.deepseek.com",

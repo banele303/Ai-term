@@ -38,7 +38,6 @@ import { FileTextIcon, MailIcon, Trash2, MegaphoneIcon, PackageSearchIcon } from
 import type { TeammateBotRecord } from "@/components/bot-dialog"
 import { useDesktopPanel } from "@/components/desktop-panel"
 import { formatGoogleAccountLabel } from "@/components/gmail-connect-modal"
-import { PUTER_SCRIPT_SRC } from "@/lib/puter"
 import { useAgentRunner } from "@/components/agent-runner-provider"
 import { parseQuoteFromText } from "@/lib/quote-pdf"
 import { ChatQuoteCard } from "@/components/chat-quote-card"
@@ -539,7 +538,6 @@ export function Chat({
 
   return (
     <>
-      <Script src={PUTER_SCRIPT_SRC} strategy="afterInteractive" />
       <div data-slot="chat" className="flex min-h-0 flex-1 flex-col">
         <Conversation>
           <ConversationContent className="mx-auto w-full max-w-3xl">

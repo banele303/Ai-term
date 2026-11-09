@@ -48,7 +48,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/toast"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
-import { streamPuterReply } from "@/lib/puter"
+import { streamDeepSeekReply } from "@/lib/deepseek"
 import { cn } from "@/lib/utils"
 
 type OverviewData = typeof FALLBACK_OVERVIEW
@@ -287,7 +287,7 @@ function CommandCenterUI({
         )
         .join("\n")
 
-      await streamPuterReply(
+      await streamDeepSeekReply(
         [
           {
             role: "system",
