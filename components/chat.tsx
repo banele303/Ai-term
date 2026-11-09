@@ -346,6 +346,13 @@ export function Chat({
         `  1. Explain that the right screen is navigated to the site with the Action/Booking tab open.`,
         `  2. Provide direct contact channels (growth@sqwiziflow.ai, support@sqwiziflow.ai) and offer to dispatch the inquiry immediately.`,
         `- NEVER output holding phrases like 'Fetching live data now...', 'Please hold on...', or 'Let me check for you'. Deliver the complete, actionable response immediately in one shot.`,
+        `FORMATTING & TABLE GUIDELINES (MANDATORY):`,
+        `- STRUCTURED MARKDOWN TABLES: Whenever presenting parts, inventory items, stock levels, quotation line items, or comparisons, ALWAYS format the data using clean Markdown Tables (| Column 1 | Column 2 | ...).`,
+        `  Example: | SKU | Description | Brand / Tier | Fitment | Price (ZAR) | Stock | Status |`,
+        `- SECTION HEADINGS: Use bold headings (### 📦 Stock Inventory, ### 💰 Formal Quotation, ### ✉️ Communication) to organize your response into crisp, scannable sections.`,
+        `- BOLD & BULLETS: Highlight key part numbers, customer names, financial totals, and urgent alerts in **bold** with clean bullet points.`,
+        `- FINANCIAL TOTALS: Clearly display Base Subtotal, 15% South African VAT, refundable Core Deposit (if applicable), and Grand Total in ZAR.`,
+        `- MESSAGE DRAFTS: Place email or customer WhatsApp drafts in clean blockquotes (> ...) ready to copy or dispatch.`,
       ]
         .filter(Boolean)
         .join("\n")

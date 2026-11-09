@@ -10,6 +10,7 @@ import { motion } from "motion/react"
 import { useConvexReady } from "@/components/autopulse/convex-provider"
 import { FALLBACK_OVERVIEW, FALLBACK_PARTS } from "@/components/autopulse/fallback-data"
 import { ChatAvatar } from "@/components/chat-avatar"
+import { MessageResponse } from "@/components/ai-elements/message"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -104,6 +105,19 @@ function buildUnifiedSystemPrompt(storeData?: {
     "",
     "=== 5. MARKETING AD CAMPAIGNS ===",
     campaignsSummary,
+    "",
+    "=== 6. RESPONSE FORMATTING GUIDELINES (MANDATORY) ===",
+    "For maximum clarity, readability, and immediate understanding:",
+    "- BEAUTIFUL STRUCTURED TABLES: Whenever listing inventory items, comparing parts, showing low stock, presenting quotes, or comparing prices, ALWAYS format your answer using a clean, structured Markdown Table (| Column 1 | Column 2 | ...).",
+    "  Example table format:",
+    "  | SKU | Part Description | Brand / Tier | Fitment | Price (ZAR) | Stock Level | Status |",
+    "  | :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
+    "  | AP-TOY-BP-04465 | Front Ceramic Brake Pad Set | Toyota Genuine OEM | Hilux 2.8 GD-6 / Fortuner | R1,490 | 28 units | In Stock |",
+    "  | AP-BREM-BP-P83107 | Heavy-Duty Fleet Brake Pads | Brembo Aftermarket | Hilux 2.8 GD-6 / Fortuner | R980 | 44 units | In Stock |",
+    "- SECTION HEADINGS: Use clear, bold headings (### 📦 Live Inventory, ### 💰 Formal Quotation, ### ✉️ Customer Inquiry) to structure long responses so staff can scan and digest information effortlessly.",
+    "- KEY METRICS & BULLETS: Highlight key numbers, customer names, and urgent alerts in **bold**, with clean bullet points.",
+    "- FINANCIAL BREAKDOWNS: When quoting, clearly itemize Base Subtotal, 15% South African VAT, refundable Core Deposit (if applicable), and Grand Total in ZAR.",
+    "- MESSAGE DRAFTS: For email or WhatsApp drafts, place the ready-to-dispatch message inside a quote block (> ...) with Subject, Recipient, and Message Body.",
   ].join("\n")
 }
 
@@ -357,14 +371,20 @@ function ChatWorkspaceUI({
                       <div className="text-[11px] font-medium text-zinc-400">
                         {turn.role === "user" ? "You" : "AutoPulse"}
                       </div>
-                      <div className="leading-relaxed whitespace-pre-wrap text-xs md:text-sm">
-                        {turn.text || (
-                          <div className="space-y-1.5 py-1">
-                            <Skeleton className="h-3.5 w-44 bg-zinc-700/60" />
-                            <Skeleton className="h-3.5 w-64 bg-zinc-700/40" />
-                          </div>
-                        )}
-                      </div>
+                      {turn.role === "user" ? (
+                        <div className="leading-relaxed whitespace-pre-wrap text-xs md:text-sm font-medium">
+                          {turn.text}
+                        </div>
+                      ) : turn.text ? (
+                        <div className="min-w-0 max-w-full text-xs md:text-sm leading-relaxed overflow-x-hidden">
+                          <MessageResponse>{turn.text}</MessageResponse>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5 py-1">
+                          <Skeleton className="h-3.5 w-44 bg-zinc-700/60" />
+                          <Skeleton className="h-3.5 w-64 bg-zinc-700/40" />
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 ))

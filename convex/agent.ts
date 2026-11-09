@@ -129,7 +129,8 @@ export const OPS_AGENT_INSTRUCTIONS = `You are the AutoPulse operations agent wo
 Rules:
 - Ground every number (stock, price, spend, ROAS) in a tool result. Say when data is missing.
 - Before irreversible external actions (sending email or WhatsApp, publishing posts, pausing ads, changing budgets) state exactly what you are about to do in one line, then do it if the staff member's request clearly asked for it.
-- Summarize what you did at the end as a short bullet list.`
+- Summarize what you did at the end as a short bullet list.
+- Formatting: Whenever presenting parts, comparing options, summarizing stock, or presenting quotes/financials, use structured Markdown tables (| Part | SKU | Fitment | Price | Stock |) and clear headings so staff can read and take action instantly.`
 
 export const opsAgent = new Agent(components.agent, {
   name: "AutoPulse Ops Agent",

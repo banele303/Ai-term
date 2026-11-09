@@ -323,14 +323,101 @@ export type MessageResponseProps = ComponentProps<typeof Streamdown>;
 
 const streamdownPlugins = { cjk, code, math, mermaid };
 
+const customMarkdownComponents: ComponentProps<typeof Streamdown>["components"] = {
+  table: ({ children, className: tableClass, ...props }: any) => (
+    <div className="my-3 w-full overflow-x-auto rounded-xl border border-zinc-800 bg-[#0d121a] shadow-md">
+      <table className={cn("w-full text-left text-xs text-zinc-300 border-collapse", tableClass)} {...props}>
+        {children}
+      </table>
+    </div>
+  ),
+  thead: ({ children, className: theadClass, ...props }: any) => (
+    <thead className={cn("border-b border-zinc-800 bg-[#141b24] text-[11px] font-semibold uppercase tracking-wider text-zinc-200", theadClass)} {...props}>
+      {children}
+    </thead>
+  ),
+  th: ({ children, className: thClass, ...props }: any) => (
+    <th className={cn("px-3.5 py-2.5 text-left font-semibold text-zinc-200 whitespace-nowrap", thClass)} {...props}>
+      {children}
+    </th>
+  ),
+  tbody: ({ children, className: tbodyClass, ...props }: any) => (
+    <tbody className={cn("divide-y divide-zinc-800/60", tbodyClass)} {...props}>
+      {children}
+    </tbody>
+  ),
+  tr: ({ children, className: trClass, ...props }: any) => (
+    <tr className={cn("hover:bg-zinc-850/50 transition-colors", trClass)} {...props}>
+      {children}
+    </tr>
+  ),
+  td: ({ children, className: tdClass, ...props }: any) => (
+    <td className={cn("px-3.5 py-2 align-middle text-zinc-300", tdClass)} {...props}>
+      {children}
+    </td>
+  ),
+  ul: ({ children, className: ulClass, ...props }: any) => (
+    <ul className={cn("my-2 ml-4 list-disc space-y-1 text-zinc-300", ulClass)} {...props}>
+      {children}
+    </ul>
+  ),
+  ol: ({ children, className: olClass, ...props }: any) => (
+    <ol className={cn("my-2 ml-4 list-decimal space-y-1 text-zinc-300", olClass)} {...props}>
+      {children}
+    </ol>
+  ),
+  li: ({ children, className: liClass, ...props }: any) => (
+    <li className={cn("leading-relaxed", liClass)} {...props}>
+      {children}
+    </li>
+  ),
+  h1: ({ children, className: h1Class, ...props }: any) => (
+    <h1 className={cn("text-base font-bold text-white mt-4 mb-2 pb-1 border-b border-zinc-800", h1Class)} {...props}>
+      {children}
+    </h1>
+  ),
+  h2: ({ children, className: h2Class, ...props }: any) => (
+    <h2 className={cn("text-sm font-bold text-white mt-3.5 mb-1.5 flex items-center gap-1.5", h2Class)} {...props}>
+      {children}
+    </h2>
+  ),
+  h3: ({ children, className: h3Class, ...props }: any) => (
+    <h3 className={cn("text-xs font-semibold text-zinc-100 mt-2.5 mb-1", h3Class)} {...props}>
+      {children}
+    </h3>
+  ),
+  blockquote: ({ children, className: bqClass, ...props }: any) => (
+    <blockquote className={cn("my-2.5 border-l-2 border-emerald-500 bg-emerald-950/20 px-3.5 py-2 rounded-r-lg text-xs italic text-zinc-300", bqClass)} {...props}>
+      {children}
+    </blockquote>
+  ),
+  hr: ({ className: hrClass, ...props }: any) => (
+    <hr className={cn("my-4 border-zinc-800", hrClass)} {...props} />
+  ),
+  a: ({ children, className: aClass, ...props }: any) => (
+    <a className={cn("text-emerald-400 hover:text-emerald-300 underline underline-offset-2 transition-colors", aClass)} target="_blank" rel="noreferrer" {...props}>
+      {children}
+    </a>
+  ),
+  strong: ({ children, className: sClass, ...props }: any) => (
+    <strong className={cn("font-semibold text-white", sClass)} {...props}>
+      {children}
+    </strong>
+  ),
+};
+
 export const MessageResponse = memo(
-  ({ className, ...props }: MessageResponseProps) => (
+  ({ className, components, ...props }: MessageResponseProps) => (
     <Streamdown
       className={cn(
-        "size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+        "size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 chat-markdown-content leading-relaxed text-zinc-200",
         className
       )}
       plugins={streamdownPlugins}
+      components={{
+        ...customMarkdownComponents,
+        ...components,
+      }}
       {...props}
     />
   ),
