@@ -823,10 +823,32 @@ export const getCrmWorkspace = query({
       lost: "CLOSED_LOST",
     }
 
+    const defaultPartsCatalog = [
+      { id: 1, make: "Toyota Hilux GD-6 / Fortuner", model: "Brembo Front Brake Pad Set (OEM 04465-0K360)", year: 2024, price: 1850, mileage: 14, status: "IN_STOCK" },
+      { id: 2, make: "VW Golf 7 GTI / R (2.0 TSI)", model: "Bosch 140A Smart Alternator Unit", year: 2024, price: 5400, mileage: 6, status: "IN_STOCK" },
+      { id: 3, make: "Ford Ranger 2.0 / 3.2 TDCi", model: "Garrett VNT Turbocharger Assembly", year: 2024, price: 14800, mileage: 3, status: "IN_STOCK" },
+      { id: 4, make: "Isuzu D-Max 2.5 / 3.0 D-Teq", model: "LUK Dual-Mass RepSet Clutch Kit", year: 2024, price: 6250, mileage: 8, status: "IN_STOCK" },
+      { id: 5, make: "BMW 3 Series (F30 320d)", model: "GUD Master Service Filter & Fluid Pack", year: 2024, price: 1950, mileage: 22, status: "IN_STOCK" },
+      { id: 6, make: "Mercedes-Benz C200 / C220d (W205)", model: "Ferodo Premier Ceramic Brake Disc & Pad Kit", year: 2024, price: 3890, mileage: 9, status: "IN_STOCK" },
+      { id: 7, make: "Nissan NP200 1.6 8V", model: "Valeo Complete Clutch & Release Bearing Kit", year: 2024, price: 2150, mileage: 15, status: "IN_STOCK" },
+      { id: 8, make: "Hyundai H100 2.6D Bakkie", model: "Delphi Common Rail High-Pressure Diesel Injector", year: 2024, price: 4200, mileage: 11, status: "IN_STOCK" },
+    ]
+
+    const cars = catalog.length > 0 ? catalog.map((p, idx) => ({
+      id: idx + 1,
+      make: p.category || "OEM Spares",
+      model: `${p.name} • ${p.brand || "OEM"} (${p.oemNumber || p.sku || `SKU-${1000 + idx}`})`,
+      year: 2024,
+      price: p.price || 3450,
+      mileage: p.stockQuantity || 10,
+      status: (p.stockQuantity ?? 10) > 0 ? "IN_STOCK" : "ON_ORDER",
+    })) : defaultPartsCatalog
+
     const crmContacts = contacts.map((c, idx) => {
       const deal = dealMap.get(c._id)
       const stage = deal?.status ? stageMap[deal.status] || "CONTACTED" : "NEW_LEAD"
       const phoneDigits = c.phone?.replace(/\D/g, "") || `2770000000${idx}`
+      const fallbackPart = cars[idx % cars.length]
       return {
         contactKey: phoneDigits,
         chatId: `${phoneDigits}@s.whatsapp.net`,
@@ -842,12 +864,12 @@ export const getCrmWorkspace = query({
         stage,
         priority: c.leadScore > 50 ? "HOT" : "NORMAL",
         source: c.source?.toUpperCase() || "WHATSAPP",
-        assignedCarId: idx + 1,
+        assignedCarId: fallbackPart.id,
         assignedCarName: deal?.vehicle
-          ? `${deal.vehicle.year || 2024} ${deal.vehicle.make || "Toyota"} ${deal.vehicle.model || "Hilux GD6"}`
-          : "2024 Toyota Rumion 1.5 SX Auto",
-        dealValueZar: deal?.totalAmount || 249900,
-        depositZar: deal?.coreDepositTotal || 25000,
+          ? `${deal.vehicle.make || "Toyota"} ${deal.vehicle.model || "Hilux GD-6"} • ${deal.notes || fallbackPart.model}`
+          : fallbackPart.model,
+        dealValueZar: deal?.totalAmount || fallbackPart.price,
+        depositZar: deal?.coreDepositTotal || Math.round(fallbackPart.price * 0.15),
         lastMessage: "Inbound WhatsApp RFQ & Fitment Inquiry",
         lastContactedLabel: "Recent Chat",
         lastContactedAt: new Date(c.lastInboundAt || Date.now()).toISOString(),
@@ -857,16 +879,6 @@ export const getCrmWorkspace = query({
         sortOrder: idx,
       }
     })
-
-    const cars = catalog.map((p, idx) => ({
-      id: idx + 1,
-      make: p.category || "Toyota",
-      model: p.name,
-      year: 2024,
-      price: p.price || 249900,
-      mileage: 15000,
-      status: "AVAILABLE",
-    }))
 
     return {
       crmContacts,

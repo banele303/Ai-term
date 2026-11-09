@@ -254,7 +254,7 @@ export function AgentRunnerProvider({ children }: { children: React.ReactNode })
                 <Input
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="e.g. AutoPulse Ops, QuoteCraft..."
+                  placeholder="e.g. AutoPulse Ops, Quote Agent..."
                   className="h-8 border-zinc-800 bg-zinc-900 text-xs text-zinc-100"
                 />
               </div>

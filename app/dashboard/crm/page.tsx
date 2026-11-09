@@ -9,7 +9,8 @@ import {
   PhoneCall,
   Mail,
   Building2,
-  Car,
+  Package,
+  Wrench,
   FileText,
   Send,
   Search,
@@ -49,63 +50,62 @@ const PIPELINE_STAGES: {
 }[] = [
   {
     id: "NEW_LEAD",
-    label: "New Lead",
-    shortLabel: "Lead",
+    label: "New Inbound RFQ",
+    shortLabel: "New RFQ",
     badgeClass: "bg-sky-500/15 text-sky-300 border-sky-500/30",
     dotClass: "bg-sky-400",
   },
   {
     id: "CONTACTED",
-    label: "Contacted",
-    shortLabel: "Contacted",
+    label: "Fitment Verified",
+    shortLabel: "Verified",
     badgeClass: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
     dotClass: "bg-emerald-400",
   },
   {
     id: "QUOTE_SENT",
-    label: "Quote Sent",
+    label: "Quote Sent (VAT)",
     shortLabel: "Quoted",
     badgeClass: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
     dotClass: "bg-indigo-400",
   },
   {
     id: "FINANCE_APP",
-    label: "Finance Dossier",
-    shortLabel: "Finance",
+    label: "Trade Order / PO",
+    shortLabel: "Order PO",
     badgeClass: "bg-amber-500/15 text-amber-300 border-amber-500/30",
     dotClass: "bg-amber-400",
   },
   {
     id: "BANK_SUBMITTED",
-    label: "Submitted to Bank",
-    shortLabel: "At Bank",
+    label: "Payment & Dispatch",
+    shortLabel: "Dispatch",
     badgeClass: "bg-purple-500/15 text-purple-300 border-purple-500/30",
     dotClass: "bg-purple-400",
   },
   {
     id: "CLOSED_WON",
-    label: "Closed Won",
-    shortLabel: "Won",
+    label: "Delivered & Won",
+    shortLabel: "Delivered",
     badgeClass: "bg-emerald-600/25 text-emerald-200 border-emerald-400/50",
     dotClass: "bg-emerald-300",
   },
 ];
 
-const FICA_DOCUMENT_TYPES = [
-  { code: "ID_COPY", label: "SA ID Copy (Smart ID / Book)" },
-  { code: "DRIVERS_LICENSE", label: "Valid SA Driver's License" },
-  { code: "BANK_STATEMENTS", label: "3 Months Stamped Bank Statements" },
-  { code: "PAYSLIPS", label: "Latest 3 Months Payslips" },
-  { code: "PROOF_OF_ADDRESS", label: "Proof of Residence (< 3 Months)" },
+const VERIFICATION_DOCUMENT_TYPES = [
+  { code: "VIN_DISC", label: "Vehicle License Disc / VIN Photo" },
+  { code: "OLD_PART", label: "Old Sample Part / OEM Number Photo" },
+  { code: "PROOF_OF_PAYMENT", label: "Proof of Payment (Bank POP / EFT)" },
+  { code: "TRADE_CIPC", label: "Workshop Trade CIPC / Tax Clearance" },
+  { code: "COURIER_POD", label: "Waybill / Proof of Delivery (POD)" },
 ];
 
-const BANK_OPTIONS = [
-  { label: "WesBank Vehicle Finance", email: "applications@wesbank.co.za" },
-  { label: "MFC (Nedbank Motor Finance)", email: "mfc@nedbank.co.za" },
-  { label: "Absa Vehicle & Asset Finance", email: "vehiclefinance@absa.co.za" },
-  { label: "Standard Bank Stannic", email: "stannic@standardbank.co.za" },
-  { label: "Capitec Business / Asset Finance", email: "business@capitecbank.co.za" },
-  { label: "AutoFame Desk Copy (alexsouthflow3@gmail.com)", email: "alexsouthflow3@gmail.com" },
+const DISPATCH_OPTIONS = [
+  { label: "The Courier Guy Express (Gauteng & Nationwide)", email: "dispatch@thecourierguy.co.za" },
+  { label: "RAM Hand-to-Hand Auto Freight", email: "express@ram.co.za" },
+  { label: "Midrand Central Parts Hub (Collection)", email: "warehouse@autopulseparts.co.za" },
+  { label: "Workshop 30-Day Trade Account", email: "accounts@autopulseparts.co.za" },
+  { label: "AutoPulse Dispatch Desk (alexsouthflow3@gmail.com)", email: "alexsouthflow3@gmail.com" },
 ];
 
 export default function DealershipCrmPage() {
@@ -151,20 +151,20 @@ export default function DealershipCrmPage() {
   const [composerChannel, setComposerChannel] = useState<"whatsapp" | "email">("whatsapp");
   const [composerText, setComposerText] = useState("");
   const [emailSubject, setEmailSubject] = useState(
-    "AutoFame Dealership Johannesburg South — Official Quotation & Finance"
+    "AutoPulse Parts South Africa — Official Quotation & Fitment Guarantee"
   );
   const [sendingMessage, setSendingMessage] = useState(false);
   const [contactChatHistory, setContactChatHistory] = useState<
     Record<string, { id: string; sender: string; text: string; time: string; fromMe: boolean }[]>
   >({});
 
-  // Customer 360 Finance Application Dossier & Bank Dispatch
+  // Customer & Workshop Parts Order Dossier & Courier Dispatch
   const [finFirstName, setFinFirstName] = useState("");
   const [finLastName, setFinLastName] = useState("");
   const [finIdNumber, setFinIdNumber] = useState("");
   const [finPhone, setFinPhone] = useState("");
   const [finEmail, setFinEmail] = useState("");
-  const [finAddress, setFinAddress] = useState("Johannesburg, Gauteng");
+  const [finAddress, setFinAddress] = useState("Midrand, Gauteng");
   const [finEmployerName, setFinEmployerName] = useState("");
   const [finJobTitle, setFinJobTitle] = useState("");
   const [finMonthlyIncome, setFinMonthlyIncome] = useState<number>(0);
@@ -173,7 +173,7 @@ export default function DealershipCrmPage() {
   const [finCarName, setFinCarName] = useState("");
   const [finCarPrice, setFinCarPrice] = useState<number>(0);
   const [finDeposit, setFinDeposit] = useState<number>(0);
-  const [finTermMonths] = useState<number>(72);
+  const [finTermMonths] = useState<number>(1);
   const [finNotes, setFinNotes] = useState("");
   const [finProofDocs, setFinProofDocs] = useState<
     Record<
@@ -187,8 +187,8 @@ export default function DealershipCrmPage() {
       }
     >
   >({});
-  const [bankRecipientEmail, setBankRecipientEmail] = useState("applications@wesbank.co.za");
-  const [activeDocUploadCode, setActiveDocUploadCode] = useState<string>("ID_COPY");
+  const [bankRecipientEmail, setBankRecipientEmail] = useState("dispatch@thecourierguy.co.za");
+  const [activeDocUploadCode, setActiveDocUploadCode] = useState<string>("VIN_DISC");
   const proofDocInputRef = useRef<HTMLInputElement>(null);
 
   const fetchWhatsAppDirectory = async () => {
@@ -245,15 +245,13 @@ export default function DealershipCrmPage() {
         source: "WHATSAPP",
         assignedCarId: realCars[idx % Math.max(realCars.length, 1)]?.id,
         assignedCarName: realCars[idx % Math.max(realCars.length, 1)]
-          ? `${realCars[idx % realCars.length].year} ${realCars[idx % realCars.length].make} ${
-              realCars[idx % realCars.length].model
-            }`
-          : "2024 Toyota Rumion 1.5 SX Auto",
-        dealValueZar: realCars[idx % Math.max(realCars.length, 1)]?.price || 249900,
+          ? `${realCars[idx % realCars.length].make} • ${realCars[idx % realCars.length].model}`
+          : "Brembo Front Brake Pad Set • Hilux GD-6",
+        dealValueZar: realCars[idx % Math.max(realCars.length, 1)]?.price || 2450,
         depositZar: Math.round(
-          (realCars[idx % Math.max(realCars.length, 1)]?.price || 249900) * 0.1
+          (realCars[idx % Math.max(realCars.length, 1)]?.price || 2450) * 0.15
         ),
-        lastMessage: c.lastMessage || "Saved WhatsApp Contact",
+        lastMessage: c.lastMessage || "Inbound WhatsApp RFQ & Fitment Inquiry",
         lastContactedLabel: c.lastContactedLabel || (c.isRecentChat ? "Recent" : "Phonebook"),
         lastContactedAt: c.timestamp || "2026-10-18T08:00:00.000Z",
         isRecentChat: Boolean(c.isRecentChat || c.lastContactedLabel),
@@ -357,18 +355,18 @@ export default function DealershipCrmPage() {
     const carLabel =
       contact.assignedCarName ||
       (assignedCar
-        ? `${assignedCar.year} ${assignedCar.make} ${assignedCar.model}`
-        : "2024 Toyota Rumion 1.5 SX Auto");
-    const carPrice = Number(contact.dealValueZar || assignedCar?.price || 249900);
+        ? `${assignedCar.make} • ${assignedCar.model}`
+        : "Brembo Front Brake Pad Set • Hilux GD-6");
+    const carPrice = Number(contact.dealValueZar || assignedCar?.price || 2450);
 
     setFinCarId(assignedCar?.id);
     setFinCarName(carLabel);
     setFinCarPrice(carPrice);
-    setFinDeposit(Number(contact.depositZar || Math.round(carPrice * 0.1)));
+    setFinDeposit(Number(contact.depositZar || Math.round(carPrice * 0.15)));
     setFinNotes(contact.notes || "");
 
     setComposerText(
-      `Hi ${first}, this is AutoFame Dealership Johannesburg South (+27 63 199 5124). Following up regarding the ${carLabel} (R${carPrice.toLocaleString()} ZAR). Would you like us to send the official quotation or open your vehicle finance application?`
+      `Hi ${first}, this is AutoPulse Parts South Africa (+27 63 199 5124). Following up regarding your inquiry for ${carLabel} (R${carPrice.toLocaleString()} ZAR). Would you like us to generate your official VAT quotation or arrange courier dispatch?`
     );
   };
 
@@ -428,9 +426,9 @@ export default function DealershipCrmPage() {
       : `+${normalizedKey}`;
     const chosenCar = realCars.find((c: any) => c.id === addCarId) || realCars[0];
     const carName = chosenCar
-      ? `${chosenCar.year} ${chosenCar.make} ${chosenCar.model}`
-      : "Selected Vehicle";
-    const carPrice = chosenCar?.price || 249900;
+      ? `${chosenCar.make} • ${chosenCar.model}`
+      : "Automotive Spare Part";
+    const carPrice = chosenCar?.price || 2450;
 
     try {
       await fetch("/api/whatsapp", {
@@ -456,8 +454,8 @@ export default function DealershipCrmPage() {
         assignedCarId: chosenCar?.id,
         assignedCarName: carName,
         dealValueZar: carPrice,
-        depositZar: Math.round(carPrice * 0.1),
-        lastMessage: addNotes.trim() || `Added to CRM — ${carName}`,
+        depositZar: Math.round(carPrice * 0.15),
+        lastMessage: addNotes.trim() || `Inbound Parts RFQ — ${carName}`,
         lastContactedLabel: "Just Now",
         lastContactedAt: new Date().toISOString(),
         isRecentChat: true,
@@ -470,7 +468,7 @@ export default function DealershipCrmPage() {
         name: addName.trim() || displayPhone,
         phone: displayPhone,
         stage: addStage,
-        lastMessage: addNotes.trim() || `Added to CRM — ${carName}`,
+        lastMessage: addNotes.trim() || `Inbound Parts RFQ — ${carName}`,
         lastContactedLabel: "Just Now",
         timestamp: new Date().toISOString(),
         isRecentChat: true,
@@ -490,7 +488,7 @@ export default function DealershipCrmPage() {
       setAddPhone("");
       setAddEmail("");
       setAddNotes("");
-      toast.success(`Saved ${localEntry.name} to AutoFame CRM`);
+      toast.success(`Saved ${localEntry.name} to AutoPulse CRM`);
     } catch (err: any) {
       toast.error(err.message || "Failed to save contact");
     }
@@ -609,7 +607,7 @@ export default function DealershipCrmPage() {
               ...list.slice(-1),
               {
                 id: `msg-${Date.now()}`,
-                sender: "AutoFame Dealership",
+                sender: "AutoPulse Parts",
                 text: composerText.trim(),
                 time: new Date().toLocaleTimeString([], {
                   hour: "2-digit",
@@ -741,13 +739,11 @@ export default function DealershipCrmPage() {
 
   const missingFinanceItems = useMemo(() => {
     const missing: string[] = [];
-    if (!finFirstName.trim() || !finLastName.trim()) missing.push("Full Name & Surname");
-    if (!finIdNumber.trim()) missing.push("13-Digit SA ID Number");
+    if (!finFirstName.trim() || !finLastName.trim()) missing.push("Contact Name & Surname");
     if (!finPhone.trim()) missing.push("WhatsApp / Mobile Number");
-    if (!finCarName.trim() || finCarPrice <= 0) missing.push("Selected Vehicle & Price");
-    if (!finEmployerName.trim()) missing.push("Employer / Business Name");
-    if (finMonthlyIncome <= 0) missing.push("Gross Monthly Income");
-    FICA_DOCUMENT_TYPES.forEach((doc) => {
+    if (!finCarName.trim() || finCarPrice <= 0) missing.push("Selected Part & Fitment");
+    if (!finAddress.trim()) missing.push("Delivery / Workshop Address");
+    VERIFICATION_DOCUMENT_TYPES.forEach((doc) => {
       if (!finProofDocs[doc.code]) {
         missing.push(doc.label);
       }
@@ -756,12 +752,10 @@ export default function DealershipCrmPage() {
   }, [
     finFirstName,
     finLastName,
-    finIdNumber,
     finPhone,
     finCarName,
     finCarPrice,
-    finEmployerName,
-    finMonthlyIncome,
+    finAddress,
     finProofDocs,
   ]);
 
@@ -772,7 +766,7 @@ export default function DealershipCrmPage() {
       await saveFinanceApplication({
         firstName: finFirstName.trim() || "Client",
         lastName: finLastName.trim() || "Applicant",
-        email: finEmail.trim() || "client@autofame.co.za",
+        email: finEmail.trim() || "orders@autopulseparts.co.za",
         phone: finPhone.trim() || selectedContact.phone,
         idNumber: finIdNumber.trim(),
         address: finAddress.trim(),
@@ -781,7 +775,7 @@ export default function DealershipCrmPage() {
         carPrice: Number(finCarPrice) || 0,
         downPaymentAmount: Number(finDeposit) || 0,
         loanAmount: Math.max((Number(finCarPrice) || 0) - (Number(finDeposit) || 0), 0),
-        termMonths: Number(finTermMonths) || 72,
+        termMonths: Number(finTermMonths) || 1,
         employmentStatus: "EMPLOYED",
         employerName: finEmployerName.trim(),
         jobTitle: finJobTitle.trim(),
@@ -817,50 +811,38 @@ export default function DealershipCrmPage() {
       });
 
       if (sendEmailToBank) {
-        const loanPrincipal = Math.max(
-          (Number(finCarPrice) || 0) - (Number(finDeposit) || 0),
-          0
-        );
-        const monthlyRate = 0.1175 / 12;
-        const term = Number(finTermMonths) || 72;
-        const estInstalment = Math.round(
-          (loanPrincipal * monthlyRate * Math.pow(1 + monthlyRate, term)) /
-            (Math.pow(1 + monthlyRate, term) - 1)
-        );
+        const partsSubtotal = Number(finCarPrice) || 0;
+        const vatAmount = Math.round(partsSubtotal * 0.15);
+        const coreDeposit = Number(finDeposit) || 0;
+        const grandTotal = partsSubtotal + vatAmount + coreDeposit;
 
-        const emailSubjectLine = `OFFICIAL VEHICLE FINANCE APPLICATION — ${finFirstName} ${finLastName} (ID: ${
-          finIdNumber || "Pending"
-        }) — ${finCarName}`;
-        const emailBodyText = `OFFICIAL DEALERSHIP VEHICLE FINANCE APPLICATION DOSSIER
-Submitted by: AutoFame Dealership (1 Rifle Range Rd, Baragwanath, Johannesburg South)
-Channel: WhatsApp Agent (ANTMAN-ZPBZZ) & Dealership CRM
+        const emailSubjectLine = `AUTOPULSE PARTS DISPATCH & WAYBILL — ${finFirstName} ${finLastName} — ${finCarName}`;
+        const emailBodyText = `AUTOPULSE AUTOMOTIVE PARTS & FITMENT DISPATCH DOSSIER
+Dispatched by: AutoPulse Parts South Africa (Distribution Hub, Midrand / JHB)
+Channel: WhatsApp Agent (+27 63 199 5124) & AutoPulse Parts CRM
 ====================================================================
 
-1. APPLICANT DETAILS
-• Full Name: ${finFirstName} ${finLastName}
-• SA ID Number: ${finIdNumber || "Pending"}
-• Mobile / WhatsApp: ${finPhone}
+1. CLIENT & WORKSHOP DETAILS
+• Contact Person: ${finFirstName} ${finLastName}
+• SA ID / CIPC: ${finIdNumber || "Verified via WhatsApp"}
+• WhatsApp / Phone: ${finPhone}
 • Email Address: ${finEmail || "Provided via WhatsApp"}
-• Physical Address: ${finAddress}
+• Delivery Address: ${finAddress}
 
-2. VEHICLE & LOAN STRUCTURE
-• Vehicle: ${finCarName}
-• Retail Price: R${Number(finCarPrice).toLocaleString()} ZAR
-• Deposit: R${Number(finDeposit).toLocaleString()} ZAR
-• Principal Loan Amount: R${loanPrincipal.toLocaleString()} ZAR
-• Term & Rate: ${term} Months @ 11.75% Linked (~R${estInstalment.toLocaleString()} ZAR/month)
+2. ORDERED PARTS & VAT BREAKDOWN
+• Part & Fitment: ${finCarName}
+• Parts Subtotal: R${partsSubtotal.toLocaleString()} ZAR
+• 15% SA VAT: R${vatAmount.toLocaleString()} ZAR
+• Core Deposit (Refundable): R${coreDeposit.toLocaleString()} ZAR
+• Grand Total: R${grandTotal.toLocaleString()} ZAR
+• Payment Link: https://autopulse.co.za/pay/${selectedContact.contactKey}
 
-3. EMPLOYMENT & AFFORDABILITY
-• Employer / Business: ${finEmployerName || "Not Specified"}
-• Occupation: ${finJobTitle || "Not Specified"}
-• Gross Monthly Income: R${Number(finMonthlyIncome).toLocaleString()} ZAR
-• Monthly Expenses: R${Number(finMonthlyExpenses).toLocaleString()} ZAR
-• Net Disposable Income: R${Math.max(
-          Number(finMonthlyIncome) - Number(finMonthlyExpenses),
-          0
-        ).toLocaleString()} ZAR
+3. WORKSHOP & TRADE PROFILE
+• Workshop / Company: ${finEmployerName || "Retail Customer / Cash EFT"}
+• Trade Note: ${finJobTitle || "Standard Delivery"}
+• Monthly Parts Budget: R${Number(finMonthlyIncome).toLocaleString()} ZAR
 
-4. ATTACHED FICA PROOF DOCUMENTS (${docsArray.length}/5)
+4. ATTACHED FITMENT & ORDER PROOFS (${docsArray.length}/5)
 ${
   docsArray.length > 0
     ? docsArray.map((d, i) => `${i + 1}. [${d.docType}] ${d.originalName} — ${d.url}`).join("\n")
@@ -886,16 +868,16 @@ ${
         });
         const emailData = await emailRes.json();
         if (!emailRes.ok) {
-          throw new Error(emailData.error || "Bank email dispatch failed");
+          throw new Error(emailData.error || "Dispatch email failed");
         }
         toast.success(
-          `Dispatched Finance Application & ${docsArray.length} attachment(s) to ${bankRecipientEmail}`
+          `Dispatched Parts Waybill & ${docsArray.length} attachment(s) to ${bankRecipientEmail}`
         );
       } else {
-        toast.success(`Saved Finance Dossier for ${finFirstName} ${finLastName}`);
+        toast.success(`Saved Parts Dossier for ${finFirstName} ${finLastName}`);
       }
     } catch (err: any) {
-      toast.error(err.message || "Failed to process finance dossier");
+      toast.error(err.message || "Failed to process parts dossier");
     }
   };
 
@@ -933,11 +915,11 @@ ${
               <Briefcase className="h-3.5 w-3.5" />
             </div>
             <span className="text-xs sm:text-sm font-bold text-[#f5f2eb] truncate">
-              AutoFame CRM
+              AutoPulse Parts CRM
             </span>
             <span className="hidden lg:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              {masterContacts.length} Contacts • {realCars.length} Cars
+              {masterContacts.length} Enquiries • {realCars.length} Parts SKUs
             </span>
           </div>
         </div>
@@ -1043,7 +1025,7 @@ ${
                 {[
                   { id: "recent", label: `Recent (${recentChatsCount})` },
                   { id: "all", label: `All (${masterContacts.length})` },
-                  { id: "finance", label: "Finance" },
+                  { id: "finance", label: "Orders" },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -1195,7 +1177,7 @@ ${
                     >
                       <Building2 className="h-3 w-3" />
                       <span>
-                        Finance Dossier ({Object.keys(finProofDocs).length}/5 Docs)
+                        Parts Dossier ({Object.keys(finProofDocs).length}/5 Proofs)
                       </span>
                     </button>
                   </div>
@@ -1226,8 +1208,8 @@ ${
                       {/* Vehicle & Deal Value Bar */}
                       <div className="p-3 rounded-xl bg-[#161512] border border-[#262420] flex flex-wrap items-center justify-between gap-3 shrink-0">
                         <div className="flex items-center gap-2.5">
-                          <Car className="h-4 w-4 text-emerald-400 shrink-0" />
-                          <span className="text-xs text-[#8e8a82]">Assigned Vehicle:</span>
+                          <Package className="h-4 w-4 text-emerald-400 shrink-0" />
+                          <span className="text-xs text-[#8e8a82]">Part &amp; Fitment:</span>
                           <select
                             value={finCarId || ""}
                             onChange={(e) => {
@@ -1235,17 +1217,16 @@ ${
                               const car = realCars.find((c: any) => c.id === id);
                               if (car) {
                                 setFinCarId(car.id);
-                                setFinCarName(`${car.year} ${car.make} ${car.model}`);
+                                setFinCarName(`${car.make} • ${car.model}`);
                                 setFinCarPrice(car.price || 0);
-                                setFinDeposit(Math.round((car.price || 0) * 0.1));
+                                setFinDeposit(Math.round((car.price || 0) * 0.15));
                               }
                             }}
                             className="bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1 text-xs font-semibold text-white"
                           >
                             {realCars.map((c: any) => (
                               <option key={c.id} value={c.id}>
-                                {c.year} {c.make} {c.model} — R
-                                {Number(c.price || 0).toLocaleString()} ZAR
+                                {c.make} — {c.model} • R{Number(c.price || 0).toLocaleString()} ZAR
                               </option>
                             ))}
                           </select>
@@ -1253,15 +1234,15 @@ ${
 
                         <div className="flex items-center gap-4 text-xs">
                           <span>
-                            Price:{" "}
+                            Part Price:{" "}
                             <strong className="font-mono text-emerald-400">
                               R{Number(finCarPrice || 0).toLocaleString()}
                             </strong>
                           </span>
                           <span>
-                            10% Deposit:{" "}
+                            15% VAT:{" "}
                             <strong className="font-mono text-[#f5f2eb]">
-                              R{Number(finDeposit || 0).toLocaleString()}
+                              R{Math.round(Number(finCarPrice || 0) * 0.15).toLocaleString()}
                             </strong>
                           </span>
                           <button
@@ -1269,7 +1250,7 @@ ${
                             onClick={() => setWorkspaceTab("dossier")}
                             className="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-[11px] font-semibold text-emerald-300"
                           >
-                            Open Finance Dossier →
+                            Open Dispatch Dossier →
                           </button>
                         </div>
                       </div>
@@ -1355,7 +1336,7 @@ ${
                                 .trim()
                                 .split(" ")[0];
                               setComposerText(
-                                `Hi ${firstName}, thank you for contacting AutoFame Dealership Johannesburg South. I have reviewed your message regarding the ${finCarName}. How can I assist you further today?`
+                                `Hi ${firstName}, thank you for contacting AutoPulse Parts South Africa (+27 63 199 5124). I have verified fitment for the ${finCarName}. Are you looking for express courier delivery or workshop trade collection?`
                               );
                             }}
                             className="px-2.5 py-1 rounded-lg bg-[#22201c] hover:bg-[#2c2924] border border-[#35312b] text-[11px] font-medium text-[#eae7e1]"
@@ -1370,12 +1351,12 @@ ${
                                 .replace(/\(.*?\)/g, "")
                                 .trim()
                                 .split(" ")[0];
-                              const price = Number(finCarPrice || 249900);
-                              const deposit = Number(finDeposit || Math.round(price * 0.1));
-                              const loan = Math.max(price - deposit, 0);
-                              const est = Math.round(loan * 0.0218);
+                              const subtotal = Number(finCarPrice || 2450);
+                              const vat = Math.round(subtotal * 0.15);
+                              const deposit = Number(finDeposit || Math.round(subtotal * 0.15));
+                              const total = subtotal + vat + deposit;
                               setComposerText(
-                                `📄 *AUTOFAME OFFICIAL VEHICLE QUOTATION*\n━━━━━━━━━━━━━━━━━━━━\nHi ${firstName}, here is your official quotation:\n\n🚘 *Vehicle:* ${finCarName}\n💰 *Retail Price:* R${price.toLocaleString()} ZAR\n💵 *10% Deposit:* R${deposit.toLocaleString()} ZAR\n💳 *Principal Loan:* R${loan.toLocaleString()} ZAR\n📊 *Est. Monthly:* ~R${est.toLocaleString()} ZAR/pm (72 Months @ 11.75%)\n\nReply *FINANCE* or send your SA ID, Driver's License, 3 months bank statements & payslips here to apply.`
+                                `📦 *AUTOPULSE OFFICIAL PARTS QUOTATION*\n━━━━━━━━━━━━━━━━━━━━\nHi ${firstName}, here is your VAT-compliant quotation:\n\n🔧 *Part & Fitment:* ${finCarName}\n💵 *Parts Subtotal:* R${subtotal.toLocaleString()} ZAR\n📋 *15% SA VAT:* R${vat.toLocaleString()} ZAR\n🛡️ *Core Deposit (Refundable):* R${deposit.toLocaleString()} ZAR\n💳 *Total Amount:* R${total.toLocaleString()} ZAR\n\n🚚 *Dispatch:* The Courier Guy / Overnight Nationwide\n🔗 *Pay Online / Bank EFT:* https://autopulse.co.za/pay/${selectedContact.contactKey}\n\nReply *CONFIRM* to lock stock & dispatch or send your license disc / VIN for fitment guarantee.`
                               );
                             }}
                             className="px-2.5 py-1 rounded-lg bg-[#22201c] hover:bg-[#2c2924] border border-[#35312b] text-[11px] font-medium text-[#eae7e1]"
@@ -1390,15 +1371,17 @@ ${
                                 .replace(/\(.*?\)/g, "")
                                 .trim()
                                 .split(" ")[0];
+                              const subtotal = Number(finCarPrice || 2450);
+                              const vat = Math.round(subtotal * 0.15);
+                              const deposit = Number(finDeposit || Math.round(subtotal * 0.15));
+                              const total = subtotal + vat + deposit;
                               setComposerText(
-                                `📋 *AutoFame Vehicle Finance Application Container*\n\nHi ${firstName}, to submit your bank finance application for the *${finCarName}* (R${Number(
-                                  finCarPrice || 0
-                                ).toLocaleString()} ZAR), please reply here with:\n1. Full Name, 13-Digit SA ID, Email & Address\n2. Employer, Job Title, Gross Monthly Income & Expenses\n3. FICA Proof Docs: SA ID, Driver's License, 3 Months Bank Statements, Payslips & Proof of Residence.`
+                                `📋 *AutoPulse Parts Order & Verification Container*\n\nHi ${firstName}, to confirm your parts order and arrange courier dispatch for *${finCarName}* (Total: R${total.toLocaleString()} ZAR):\n1. Delivery Address & Contact Person\n2. VIN / Chassis Number or Vehicle License Disc photo (for OEM fitment guarantee)\n3. Bank Proof of Payment (POP/EFT) or Workshop CIPC for trade credit.`
                               );
                             }}
                             className="px-2.5 py-1 rounded-lg bg-[#22201c] hover:bg-[#2c2924] border border-[#35312b] text-[11px] font-medium text-[#eae7e1]"
                           >
-                            Finance Container
+                            Order PO Checklist
                           </button>
                         </div>
                       </div>
@@ -1408,7 +1391,7 @@ ${
                           rows={3}
                           value={composerText}
                           onChange={(e) => setComposerText(e.target.value)}
-                          placeholder="Write a WhatsApp message, vehicle quotation, or finance checklist..."
+                          placeholder="Write a WhatsApp message, parts quotation, or dispatch update..."
                           className="flex-1 bg-[#1b1a17] border border-[#33302a] rounded-xl p-2.5 text-xs text-[#f5f2eb] leading-relaxed focus:outline-none focus:border-emerald-500 resize-none"
                         />
                         <Button
@@ -1431,15 +1414,15 @@ ${
                   </div>
                 )}
 
-                {/* SUB-TAB 2: 2-COLUMN ZERO-SCROLL FINANCE DOSSIER & BANK SUBMISSION */}
+                {/* SUB-TAB 2: 2-COLUMN ZERO-SCROLL PARTS DOSSIER & DISPATCH */}
                 {workspaceTab === "dossier" && (
                   <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 overflow-hidden">
-                    {/* Left Column: Applicant, Vehicle & Affordability Fields */}
+                    {/* Left Column: Workshop, Customer & Fitment Fields */}
                     <div className="flex flex-col justify-between rounded-xl bg-[#161512] border border-[#262420] p-4 overflow-hidden">
                       <div className="flex items-center justify-between pb-2 border-b border-[#25231f]">
                         <div>
                           <h3 className="text-xs font-bold uppercase font-mono text-emerald-400">
-                            1. Applicant, Vehicle &amp; Affordability
+                            1. Workshop / Customer &amp; Fitment Profile
                           </h3>
                           <p className="text-[10px] text-[#8e8a82]">
                             Auto-filled from WhatsApp chat or editable below
@@ -1529,7 +1512,7 @@ ${
                       <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#25231f]">
                         <div className="col-span-2">
                           <label className="text-[10px] text-[#8e8a82] block mb-0.5">
-                            Showroom Vehicle
+                            Selected Part &amp; Vehicle Fitment
                           </label>
                           <select
                             value={finCarId || ""}
@@ -1538,24 +1521,24 @@ ${
                               const car = realCars.find((c: any) => c.id === id);
                               if (car) {
                                 setFinCarId(car.id);
-                                setFinCarName(`${car.year} ${car.make} ${car.model}`);
+                                setFinCarName(`${car.make} • ${car.model}`);
                                 setFinCarPrice(car.price || 0);
-                                setFinDeposit(Math.round((car.price || 0) * 0.1));
+                                setFinDeposit(Math.round((car.price || 0) * 0.15));
                               }
                             }}
                             className="w-full bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1.5 text-xs text-white"
                           >
                             {realCars.map((c: any) => (
                               <option key={c.id} value={c.id}>
-                                {c.year} {c.make} {c.model} — R
-                                {Number(c.price || 0).toLocaleString()}
+                                {c.make} — {c.model} • R
+                                {Number(c.price || 0).toLocaleString()} ZAR
                               </option>
                             ))}
                           </select>
                         </div>
                         <div>
                           <label className="text-[10px] text-[#8e8a82] block mb-0.5">
-                            Deposit (R ZAR)
+                            Core Deposit (R ZAR)
                           </label>
                           <input
                             type="number"
@@ -1569,19 +1552,19 @@ ${
                       <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#25231f]">
                         <div>
                           <label className="text-[10px] text-[#8e8a82] block mb-0.5">
-                            Employer / Bank
+                            Workshop / Company
                           </label>
                           <input
                             type="text"
                             value={finEmployerName}
                             onChange={(e) => setFinEmployerName(e.target.value)}
-                            placeholder="Company Name"
+                            placeholder="e.g. Randburg Auto Tech"
                             className="w-full bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1.5 text-xs text-white"
                           />
                         </div>
                         <div>
                           <label className="text-[10px] text-[#8e8a82] block mb-0.5">
-                            Gross Income (R)
+                            Monthly Parts Vol (R)
                           </label>
                           <input
                             type="number"
@@ -1593,28 +1576,28 @@ ${
                         </div>
                         <div>
                           <label className="text-[10px] text-[#8e8a82] block mb-0.5">
-                            Expenses (R)
+                            Dispatch Notes
                           </label>
                           <input
-                            type="number"
-                            value={finMonthlyExpenses || ""}
-                            onChange={(e) => setFinMonthlyExpenses(Number(e.target.value))}
-                            placeholder="14500"
-                            className="w-full bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1.5 text-xs font-mono text-white"
+                            type="text"
+                            value={finJobTitle}
+                            onChange={(e) => setFinJobTitle(e.target.value)}
+                            placeholder="Express Overnight"
+                            className="w-full bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1.5 text-xs text-white"
                           />
                         </div>
                       </div>
                     </div>
 
-                    {/* Right Column: 5 FICA Proof Documents & Bank Email Dispatch */}
+                    {/* Right Column: 5 Fitment & Order Proofs & Dispatch */}
                     <div className="flex flex-col justify-between rounded-xl bg-[#161512] border border-[#262420] p-4 overflow-hidden">
                       <div className="flex items-center justify-between pb-2 border-b border-[#25231f]">
                         <div>
                           <h3 className="text-xs font-bold uppercase font-mono text-emerald-400">
-                            2. FICA Proof Documents &amp; Bank Dispatch
+                            2. Fitment &amp; Order Proofs &amp; Dispatch
                           </h3>
                           <p className="text-[10px] text-[#8e8a82]">
-                            Attach all 5 documents and dispatch with MIME attachments
+                            Attach license disc/VIN, old sample, bank POP, and dispatch waybill
                           </p>
                         </div>
                         <span
@@ -1631,7 +1614,7 @@ ${
 
                       {/* 5 Compact Document Rows */}
                       <div className="space-y-1.5">
-                        {FICA_DOCUMENT_TYPES.map((doc) => {
+                        {VERIFICATION_DOCUMENT_TYPES.map((doc) => {
                           const uploaded = finProofDocs[doc.code];
                           return (
                             <div
@@ -1674,20 +1657,20 @@ ${
                         })}
                       </div>
 
-                      {/* Bank Underwriting Selector & Submit Buttons */}
+                      {/* Courier Dispatch Selector & Submit Buttons */}
                       <div className="pt-2 border-t border-[#25231f] space-y-2">
                         <div className="flex items-center justify-between gap-2">
                           <label className="text-[10px] font-mono uppercase text-[#8e8a82]">
-                            Target Bank Desk:
+                            Courier Carrier:
                           </label>
                           <select
                             value={bankRecipientEmail}
                             onChange={(e) => setBankRecipientEmail(e.target.value)}
                             className="flex-1 bg-[#11100e] border border-[#33302a] rounded-lg px-2.5 py-1.5 text-xs text-white"
                           >
-                            {BANK_OPTIONS.map((b) => (
+                            {DISPATCH_OPTIONS.map((b) => (
                               <option key={b.email} value={b.email}>
-                                {b.label} ({b.email})
+                                {b.label}
                               </option>
                             ))}
                           </select>
@@ -1707,7 +1690,7 @@ ${
                             className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold h-9 rounded-xl flex items-center justify-center gap-1.5"
                           >
                             <Mail className="h-3.5 w-3.5" />
-                            Email Dossier &amp; Docs to Bank
+                            Dispatch Waybill via Email
                           </Button>
                         </div>
                       </div>
@@ -1747,7 +1730,7 @@ ${
             <div className="p-3.5 border-b border-[#25231f] flex flex-wrap items-center justify-between gap-3 shrink-0">
               <div>
                 <h2 className="text-xs sm:text-sm font-bold text-[#f5f2eb]">
-                  Master Dealership Contact Directory ({filteredContacts.length} Contacts)
+                  Master Parts &amp; Client Contact Directory ({filteredContacts.length} Inquiries)
                 </h2>
                 <p className="text-[10px] text-[#8e8a82]">
                   Sorted by Last Contacted • Zero-scroll paginated directory
@@ -1759,7 +1742,7 @@ ${
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Filter by name, phone, car, or message..."
+                  placeholder="Filter by name, phone, part, or message..."
                   className="w-64 bg-[#11100e] border border-[#33302a] rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                 />
               </div>
@@ -1774,8 +1757,8 @@ ${
                     <th className="py-2.5 px-4">Contact Name</th>
                     <th className="py-2.5 px-4">WhatsApp / Phone</th>
                     <th className="py-2.5 px-4">Stage</th>
-                    <th className="py-2.5 px-4">Assigned Vehicle</th>
-                    <th className="py-2.5 px-4">Deal Value</th>
+                    <th className="py-2.5 px-4">Requested Part &amp; Fitment</th>
+                    <th className="py-2.5 px-4">Quote Total (ZAR)</th>
                     <th className="py-2.5 px-4">Last Message</th>
                     <th className="py-2.5 px-4">Last Contacted</th>
                     <th className="py-2.5 px-4 text-right">Actions</th>
@@ -1812,7 +1795,7 @@ ${
                           {c.assignedCarName}
                         </td>
                         <td className="py-2.5 px-4 font-mono font-semibold text-emerald-300">
-                          R{Number(c.dealValueZar || 249900).toLocaleString()}
+                          R{Number(c.dealValueZar || 2450).toLocaleString()}
                         </td>
                         <td className="py-2.5 px-4 text-[#a09c94] max-w-xs truncate">
                           {c.lastMessage}
@@ -1906,7 +1889,7 @@ ${
             <div className="flex items-center justify-between pb-3 border-b border-[#292621]">
               <div>
                 <h3 className="text-sm font-bold text-[#f5f2eb]">
-                  Add Contact to AutoFame CRM
+                  Add Parts Inquiry to AutoPulse CRM
                 </h3>
                 <p className="text-[11px] text-[#8e8a82]">
                   Saves permanently to Convex CRM &amp; WhatsApp Directory
@@ -1924,13 +1907,13 @@ ${
             <div className="space-y-3 text-xs">
               <div>
                 <label className="text-[10px] font-mono uppercase text-[#8e8a82] block mb-1">
-                  Contact Full Name *
+                  Contact / Workshop Name *
                 </label>
                 <input
                   type="text"
                   value={addName}
                   onChange={(e) => setAddName(e.target.value)}
-                  placeholder="e.g. Sipho Ndlovu"
+                  placeholder="e.g. Sipho Ndlovu or Apex Auto Repair"
                   className="w-full bg-[#11100e] border border-[#33302a] rounded-xl px-3 py-2 text-white"
                 />
               </div>
@@ -1957,7 +1940,7 @@ ${
                     type="email"
                     value={addEmail}
                     onChange={(e) => setAddEmail(e.target.value)}
-                    placeholder="client@email.co.za"
+                    placeholder="workshop@autoparts.co.za"
                     className="w-full bg-[#11100e] border border-[#33302a] rounded-xl px-3 py-2 text-white"
                   />
                 </div>
@@ -1981,7 +1964,7 @@ ${
 
               <div>
                 <label className="text-[10px] font-mono uppercase text-[#8e8a82] block mb-1">
-                  Interested Showroom Vehicle
+                  Requested Part &amp; Vehicle Fitment
                 </label>
                 <select
                   value={addCarId || ""}
@@ -1990,7 +1973,7 @@ ${
                 >
                   {realCars.map((c: any) => (
                     <option key={c.id} value={c.id}>
-                      {c.year} {c.make} {c.model} — R{Number(c.price || 0).toLocaleString()} ZAR
+                      {c.make} — {c.model} • R{Number(c.price || 0).toLocaleString()} ZAR
                     </option>
                   ))}
                 </select>

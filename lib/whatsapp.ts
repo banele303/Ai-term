@@ -24,9 +24,9 @@ export const SYNCED_WHAPI_CONTACTS: SyncedContact[] = [
   {
     id: AUTOFAME_AGENT_GROUP_ID,
     chatId: AUTOFAME_AGENT_GROUP_ID,
-    name: "AutoFame AI Agent (Group)",
+    name: "Whatsapp Agent (Live)",
     phone: "+27 63 199 5124",
-    lastMessage: "AutoFame Dealership AI Agent Channel — Ask inventory, quotes, or finance",
+    lastMessage: "Whatsapp Agent Channel (+27 63 199 5124) — Live catalog inventory, instant quotes, and finance dossiers",
     fromMe: false,
     timestamp: "2026-10-22T10:20:41.000Z",
     lastContactedLabel: "Today • Live Agent",

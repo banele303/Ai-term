@@ -34,7 +34,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { FileTextIcon, MailIcon, Trash2 } from "lucide-react"
+import { FileTextIcon, MailIcon, Trash2, MegaphoneIcon, PackageSearchIcon } from "lucide-react"
 import type { TeammateBotRecord } from "@/components/bot-dialog"
 import { useDesktopPanel } from "@/components/desktop-panel"
 import { formatGoogleAccountLabel } from "@/components/gmail-connect-modal"
@@ -82,6 +82,53 @@ export function Chat({
     activeBots.map((b) => [b.id, b])
   )
 
+  const currentBotNameLower = (currentBot?.name ?? "").toLowerCase()
+  const currentBotJobLower = (currentBot?.job ?? "").toLowerCase()
+
+  const isCurrentBotQuote =
+    currentBotNameLower.includes("quote") ||
+    currentBotNameLower.includes("craft") ||
+    currentBotJobLower.includes("quote") ||
+    currentBotJobLower.includes("pdf") ||
+    currentBotJobLower.includes("estimator")
+
+  const isCurrentBotEmail =
+    currentBotNameLower.includes("email") ||
+    currentBotNameLower.includes("comm") ||
+    currentBotNameLower.includes("aero") ||
+    currentBotJobLower.includes("email") ||
+    currentBotJobLower.includes("communication")
+
+  const isCurrentBotSourcing =
+    currentBotNameLower.includes("supplier") ||
+    currentBotNameLower.includes("supply") ||
+    currentBotNameLower.includes("hunter") ||
+    currentBotJobLower.includes("supplier") ||
+    currentBotJobLower.includes("supply") ||
+    currentBotJobLower.includes("sourcing") ||
+    currentBotJobLower.includes("inventory")
+
+  const isCurrentBotMarketing =
+    currentBotNameLower.includes("social") ||
+    currentBotNameLower.includes("omni") ||
+    currentBotNameLower.includes("pulse") ||
+    currentBotJobLower.includes("social") ||
+    currentBotJobLower.includes("tiktok") ||
+    currentBotJobLower.includes("marketing")
+
+  const isCurrentBotWhatsApp =
+    currentBotNameLower.includes("whatsapp") ||
+    currentBotNameLower.includes("fame") ||
+    currentBotJobLower.includes("whatsapp") ||
+    currentBotJobLower.includes("client")
+
+  const isCurrentBotOps =
+    !isCurrentBotQuote &&
+    !isCurrentBotEmail &&
+    !isCurrentBotSourcing &&
+    !isCurrentBotMarketing &&
+    !isCurrentBotWhatsApp
+
   const handleStop = () => {
     runner.stopTurn(chatId)
   }
@@ -108,16 +155,58 @@ export function Chat({
     const text = input.text.trim()
     if (!text || isWorking) return
 
-    // Auto-route to WhatsApp Executive if the inquiry asks about WhatsApp or clients in a team
-    const isWhatsAppMention = /whatsapp|whapi|autofame|dossier|fica|client/i.test(text)
-    const waBotInTeam = activeBots.find(
-      (b) => b.name.includes("WhatsApp") || b.name.includes("Fame")
-    )
-    const targetBot = (isWhatsAppMention && waBotInTeam && activeBots.length > 1) ? waBotInTeam : currentBot
+    const targetBot = currentBot ?? bots[0]
     if (!targetBot) {
       toast.add({ type: "error", title: "No bot selected to answer" })
       return
     }
+
+    const targetBotNameLower = targetBot.name.toLowerCase()
+    const targetBotJobLower = targetBot.job.toLowerCase()
+
+    const isTargetQuote =
+      targetBotNameLower.includes("quote") ||
+      targetBotNameLower.includes("craft") ||
+      targetBotJobLower.includes("quote") ||
+      targetBotJobLower.includes("pdf") ||
+      targetBotJobLower.includes("estimator")
+
+    const isTargetEmail =
+      targetBotNameLower.includes("email") ||
+      targetBotNameLower.includes("comm") ||
+      targetBotNameLower.includes("aero") ||
+      targetBotJobLower.includes("email") ||
+      targetBotJobLower.includes("communication")
+
+    const isTargetSourcing =
+      targetBotNameLower.includes("supplier") ||
+      targetBotNameLower.includes("supply") ||
+      targetBotNameLower.includes("hunter") ||
+      targetBotJobLower.includes("supplier") ||
+      targetBotJobLower.includes("supply") ||
+      targetBotJobLower.includes("sourcing") ||
+      targetBotJobLower.includes("inventory")
+
+    const isTargetMarketing =
+      targetBotNameLower.includes("social") ||
+      targetBotNameLower.includes("omni") ||
+      targetBotNameLower.includes("pulse") ||
+      targetBotJobLower.includes("social") ||
+      targetBotJobLower.includes("tiktok") ||
+      targetBotJobLower.includes("marketing")
+
+    const isTargetWhatsApp =
+      targetBotNameLower.includes("whatsapp") ||
+      targetBotNameLower.includes("fame") ||
+      targetBotJobLower.includes("whatsapp") ||
+      targetBotJobLower.includes("client")
+
+    const isTargetOps =
+      !isTargetQuote &&
+      !isTargetEmail &&
+      !isTargetSourcing &&
+      !isTargetMarketing &&
+      !isTargetWhatsApp
 
     // Auto-sync DesktopPanel navigation & action tabs
     const urlMatch = text.match(/(?:https?:\/\/)?(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s]*)?/i)
@@ -136,20 +225,20 @@ export function Chat({
       }
     }
 
-    // Auto-open Gmail Connect modal directly on this page if user requests Gmail connection
-    if (desktop && /connect.*gmail|email.*connect|connect.*email/i.test(text)) {
+    // Auto-open Gmail Connect modal directly on this page if user requests Gmail connection AND target bot is Email or Ops
+    if (desktop && (isTargetEmail || isTargetOps) && /connect.*gmail|email.*connect|connect.*email/i.test(text)) {
       desktop.openGmailModal?.()
     }
 
-    // Auto-dispatch email if user requests to send an email
+    // Auto-dispatch email only if user requests to send an email AND target bot handles email, quotes, or ops
     const emailMatch = text.match(/(?:send|dispatch|draft|shoot)\s+(?:an?\s+)?email\s+(?:to\s+)?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i)
-    if (emailMatch) {
+    if (emailMatch && (isTargetEmail || isTargetOps || isTargetQuote)) {
       const recipient = emailMatch[1]
       const sayMatch = text.match(/say(?:ing)?\s+["']?([^"']+)["']?$/i)
       const emailBody = sayMatch ? sayMatch[1].trim() : text
       const emailSubject = /quote|quotation|price/i.test(text)
         ? "AutoPulse Quotation & Pricing Summary"
-        : "Message from AutoPulse Ops AI"
+        : `Message from ${targetBot.name}`
 
       void sendEmailAction({
         to: recipient,
@@ -175,15 +264,21 @@ export function Chat({
         .catch(() => null)
     }
 
-    // Auto-open Quote Studio / Actions tab if user requests quotation or PDF
-    if (desktop && /quote|quotation|pdf.*quote|make.*quote|create.*quote|send.*quote|quotecraft/i.test(text)) {
-      desktop.setOpen(true)
-      desktop.setActiveTab("actions")
-      desktop.setActionSubView("quotecraft")
-    } else if (desktop && /tiktok|instagram|social.*dm|auto.*reply/i.test(text)) {
-      desktop.setOpen(true)
-      desktop.setActiveTab("actions")
-      desktop.setActionSubView("socialdms")
+    // Auto-open respective studio based on bot and text
+    if (desktop) {
+      if ((isTargetQuote || isTargetOps) && /quote|quotation|pdf.*quote|make.*quote|create.*quote|send.*quote|quotecraft/i.test(text)) {
+        desktop.setOpen(true)
+        desktop.setActiveTab("actions")
+        desktop.setActionSubView("quotecraft")
+      } else if ((isTargetMarketing || isTargetOps) && /tiktok|instagram|social.*dm|auto.*reply/i.test(text)) {
+        desktop.setOpen(true)
+        desktop.setActiveTab("actions")
+        desktop.setActionSubView("socialdms")
+      } else if ((isTargetSourcing || isTargetOps) && /supply|sourcing|reorder|supplier|stockout|po|purchase.*order/i.test(text)) {
+        desktop.setOpen(true)
+        desktop.setActiveTab("actions")
+        desktop.setActionSubView("supplyhunter")
+      }
     }
 
     try {
@@ -194,7 +289,7 @@ export function Chat({
       })
 
       let liveInboxSummary = ""
-      if (/(?:email|inbox|gmail|mail|message|inquir|today|receive|got)/i.test(text)) {
+      if ((isTargetEmail || isTargetOps) && /(?:email|inbox|gmail|mail|message|inquir|today|receive|got)/i.test(text)) {
         try {
           const inboxRes = await fetchRecentEmailsAction({ maxResults: 8 })
           if (inboxRes?.emails && inboxRes.emails.length > 0) {
@@ -213,137 +308,170 @@ export function Chat({
         }
       }
 
-      const storeSummary = [
-        liveInboxSummary,
-        storeContext ? [
-          storeContext.catalog?.length
-            ? `Catalog sample: ${storeContext.catalog.slice(0, 15).map((p) => `[${p.sku}] ${p.name} | Brand: ${p.brand} | In Stock: ${p.stock} (min ${p.threshold}) | ZAR ${p.price}`).join("; ")}.`
-            : "",
-          storeContext.lowStockParts?.length
-            ? `Low stock alerts: ${storeContext.lowStockParts.map((p) => `* ALERT: ${p.name} [${p.sku}] (only ${p.stock} left, threshold: ${p.threshold})`).join("; ")}.`
-            : "",
-          storeContext.messages?.length
-            ? `Archived communications: ${storeContext.messages.slice(0, 8).map((m) => `[${m.channel.toUpperCase()}] From ${m.from}: "${m.body.replace(/\n/g, ' ').slice(0, 100)}"`).join("; ")}.`
-            : "",
-          storeContext.deals?.length
-            ? `Active quotes: ${storeContext.deals.slice(0, 5).map((d) => `${d.contactName} (${d.status}, ZAR ${d.totalAmount}) - Parts: ${d.partsSummary}`).join("; ")}.`
-            : "",
-          storeContext.campaigns?.length
-            ? `Active ad campaigns: ${storeContext.campaigns.map((c) => `[${c.platform}] ${c.name} (Status: ${c.status}, Spend: ZAR ${c.spend}, Leads: ${c.conversions})`).join("; ")}.`
-            : "",
-        ].filter(Boolean).join("\n") : "",
-      ].filter(Boolean).join("\n\n")
+      let storeSummary = ""
+      if (storeContext) {
+        if (isTargetQuote) {
+          // QuoteCraft only needs catalog items and deals/quotes
+          storeSummary = [
+            storeContext.catalog?.length
+              ? `Catalog & Pricing sample:\n${storeContext.catalog.slice(0, 20).map((p) => `- [${p.sku}] ${p.name} | Brand: ${p.brand} | In Stock: ${p.stock} | ZAR ${p.price}`).join("\n")}`
+              : "",
+            storeContext.deals?.length
+              ? `Recent Quotes & Deals:\n${storeContext.deals.slice(0, 5).map((d) => `- ${d.contactName} (${d.status}, ZAR ${d.totalAmount}) - Parts: ${d.partsSummary}`).join("\n")}`
+              : "",
+          ].filter(Boolean).join("\n\n")
+        } else if (isTargetSourcing) {
+          // SupplyHunter needs low stock alerts and catalog
+          storeSummary = [
+            storeContext.lowStockParts?.length
+              ? `Low Stock Reorder Alerts:\n${storeContext.lowStockParts.map((p) => `- ALERT: ${p.name} [${p.sku}] (only ${p.stock} left, threshold: ${p.threshold})`).join("\n")}`
+              : "",
+            storeContext.catalog?.length
+              ? `Supplier Catalog overview:\n${storeContext.catalog.slice(0, 15).map((p) => `- [${p.sku}] ${p.name} | In Stock: ${p.stock} (min ${p.threshold}) | Retail ZAR ${p.price}`).join("\n")}`
+              : "",
+          ].filter(Boolean).join("\n\n")
+        } else if (isTargetMarketing) {
+          // OmniPulse needs campaigns
+          storeSummary = [
+            storeContext.campaigns?.length
+              ? `Active Ad Campaigns:\n${storeContext.campaigns.map((c) => `- [${c.platform}] ${c.name} (Status: ${c.status}, Spend: ZAR ${c.spend}, Conversions: ${c.conversions})`).join("\n")}`
+              : "",
+          ].filter(Boolean).join("\n\n")
+        } else if (isTargetEmail) {
+          // AeroComm needs liveInbox + messages
+          storeSummary = [
+            liveInboxSummary,
+            storeContext.messages?.length
+              ? `Archived Email & WhatsApp inquiries:\n${storeContext.messages.slice(0, 8).map((m) => `- [${m.channel.toUpperCase()}] From ${m.from}: "${m.body.replace(/\n/g, ' ').slice(0, 120)}"`).join("\n")}`
+              : "",
+          ].filter(Boolean).join("\n\n")
+        } else if (isTargetWhatsApp) {
+          // AutoFame needs messages + deals + catalog
+          storeSummary = [
+            storeContext.messages?.length
+              ? `WhatsApp Client Communications:\n${storeContext.messages.slice(0, 8).map((m) => `- [${m.channel.toUpperCase()}] From ${m.from}: "${m.body.replace(/\n/g, ' ').slice(0, 120)}"`).join("\n")}`
+              : "",
+            storeContext.deals?.length
+              ? `Active Deals & Finance Pipelines:\n${storeContext.deals.slice(0, 5).map((d) => `- ${d.contactName} (${d.status}, ZAR ${d.totalAmount}) - Parts: ${d.partsSummary}`).join("\n")}`
+              : "",
+            storeContext.catalog?.length
+              ? `Catalog lookup sample:\n${storeContext.catalog.slice(0, 10).map((p) => `- [${p.sku}] ${p.name} | ZAR ${p.price} | Stock: ${p.stock}`).join("\n")}`
+              : "",
+          ].filter(Boolean).join("\n\n")
+        } else {
+          // AutoPulse Ops AI (Master Central Operations Dispatcher gets the whole picture)
+          storeSummary = [
+            liveInboxSummary,
+            storeContext.catalog?.length
+              ? `Catalog sample: ${storeContext.catalog.slice(0, 10).map((p) => `[${p.sku}] ${p.name} | ZAR ${p.price}`).join("; ")}.`
+              : "",
+            storeContext.lowStockParts?.length
+              ? `Low stock alerts: ${storeContext.lowStockParts.map((p) => `${p.name} [${p.sku}] (${p.stock} left)`).join("; ")}.`
+              : "",
+            storeContext.messages?.length
+              ? `Recent messages: ${storeContext.messages.slice(0, 5).map((m) => `[${m.channel}] ${m.from}: "${m.body.slice(0, 60)}"`).join("; ")}.`
+              : "",
+            storeContext.deals?.length
+              ? `Active quotes: ${storeContext.deals.slice(0, 5).map((d) => `${d.contactName} (${d.status}, ZAR ${d.totalAmount})`).join("; ")}.`
+              : "",
+            storeContext.campaigns?.length
+              ? `Ad campaigns: ${storeContext.campaigns.map((c) => `${c.name} (ZAR ${c.spend})`).join("; ")}.`
+              : "",
+          ].filter(Boolean).join("\n\n")
+        }
+      }
 
       let botSpecialization = ""
-      const botNameLower = targetBot.name.toLowerCase()
-      const botJobLower = targetBot.job.toLowerCase()
-
-      if (botNameLower.includes("fame") || botNameLower.includes("whatsapp") || botJobLower.includes("whatsapp") || botJobLower.includes("client")) {
+      if (isTargetWhatsApp) {
         botSpecialization = [
-          "=== DOMAIN FOCUS: AUTONOMOUS WHATSAPP CLIENT EXECUTIVE & LIVE DATABASE SPECIALIST ===",
-          "- You are AutoFame WhatsApp Executive, the autonomous client-servicing AI teammate with full live access to Whapi.cloud WhatsApp (+27 63 199 5124, Channel ANTMAN-ZPBZZ, Token gfsvMATZZV5XA5bOi71jCmhyxdE7STgO) and the live database.",
-          "- You do EVERYTHING the client needs end-to-end:",
-          "  1. Live Catalog & Fitment Lookup: Search parts, vehicles, OEM cross-references, stock, and fitment directly in our live database.",
-          "  2. Instant Formal Quotations: Generate priced quotes in South African Rand (ZAR) with 15% VAT and one-click payment links (/pay/{dealId}).",
-          "  3. WhatsApp Client Context & Inquiries: Access live conversations with clients (e.g. Precious +27 69 764 2905, Martha +27 83 732 4229, Weja +27 76 385 6479, +27 76 073 7452, +27 78 967 8343, Advance Auto, JD Auto Cars).",
-          "  4. Direct WhatsApp Message & Document Dispatch: Draft and dispatch messages, formal quotes, and PDF documents directly to any client's WhatsApp number.",
-          "  5. CRM Pipeline Progression: Progress deals through NEW_LEAD -> CONTACTED -> QUOTE_SENT -> FINANCE_APP -> BANK_SUBMITTED -> CLOSED_WON.",
-          "  6. Finance Dossier Compilation: Extract salary, employer, South African ID, and FICA proof documents (ID, Driver's License, 3 Months Bank Statements, Payslips, Proof of Address) and compile finance applications for WesBank, Absa, Standard Bank Stannic, and Capitec.",
-          "- When responding to client questions or user requests about clients, ALWAYS format line items, vehicle prices, and finance calculations using clean Markdown Tables (| Item | SKU / Model | Price (ZAR) | Stock / Status |).",
+          "=== DOMAIN FOCUS: WHATSAPP AGENT • LIVE WHATSAPP CLIENT EXECUTIVE & DEALS ===",
+          "- You are Whatsapp Agent, the autonomous client-servicing AI teammate with direct live access to Whapi.cloud WhatsApp (+27 63 199 5124, Channel ANTMAN-ZPBZZ) and our live database.",
+          "- You are ACTIVELY CONNECTED to WhatsApp. You receive incoming WhatsApp inquiries, check stock, calculate pricing and VAT in South African Rand (ZAR), generate formal PDF quotes with payment links (/pay/{dealId}), and dispatch WhatsApp messages directly.",
+          "- You handle WhatsApp client relations, vehicle inquiries, and finance application dossiers (WesBank, Absa, Standard Bank, Capitec).",
+          "- Guide clients through FICA documentation: ID, Driver's License, 3 Months Bank Statements, Payslips, Proof of Address.",
           "- When drafting a WhatsApp dispatch, provide a clean blockquote (> ...) with the text and offer a direct 1-click wa.me link (https://wa.me/{phone}?text={encoded}).",
+          "=== STRICT SPECIALIZATION BOUNDARIES (MANDATORY) ===",
+          "- You do NOT manage TikTok advertising or viral scripts. If asked about TikTok, politely direct the user to **Social Agent**.",
+          "- You do NOT manage warehouse inventory reorders or supplier POs. If asked about supplier restocking, politely direct the user to **Supplier Agent**.",
+          "- You do NOT triage general company email inboxes. If asked about Gmail/Outlook triage, politely direct the user to **Email Agent**.",
         ].join("\n")
-      } else if (botNameLower.includes("comm") || botJobLower.includes("email") || botJobLower.includes("communication")) {
+      } else if (isTargetEmail) {
         botSpecialization = [
-          "=== DOMAIN FOCUS: COMMUNICATIONS, EMAIL & CRM ===",
-          "- Your primary specialty is managing all customer communications across Gmail, Outlook, and Whapi.cloud WhatsApp.",
+          "=== DOMAIN FOCUS: EMAIL AGENT • COMMUNICATIONS, GMAIL & CRM ===",
+          "- Your EXCLUSIVE specialty is managing customer email communications across Gmail, Outlook, and general correspondence.",
           "- You ARE integrated with AutoPulse's Gmail router and the workspace email console via Composio Google OAuth.",
-          "- If the user asks how to connect to Gmail or says 'lets connect to gmail', guide them directly:",
-          "  1. Tell them: 'I have opened the Google OAuth Connect Modal directly on this page for you!'",
-          "  2. 'Click \"Sign in with Google\" in the modal to authorize your Gmail inbox via Composio Single Sign-On without leaving this session.'",
-          "  3. 'You can also click the \"Connect Gmail\" button anytime right under the chat input or in the right panel.'",
-          "  4. 'Once connected, I will automatically read incoming customer RFQs and send verified quotes directly from your Gmail address.'",
           "- When the user asks 'which emails did we get today?', 'check my emails', or about received emails:",
           "  1. Review the real messages in the LIVE CONNECTED GMAIL INBOX section (banelesouthflow@gmail.com).",
-          "  2. List the actual senders, subjects, and clean summaries (e.g. Google Security alert confirming Composio OAuth connection, LinkedIn profile views/invitations, newsletters).",
+          "  2. List the actual senders, subjects, and clean summaries.",
           "  3. NEVER report the demo Marco van Wyk alternator message as today's new emails unless specifically asked about Marco van Wyk.",
-          "- Never ask for manual passwords or app passwords; authentication is handled exclusively via secure Google OAuth through Composio.",
-          "- NEVER tell the user to navigate away to other pages. The Google OAuth modal opens right in this session.",
-          "- Never say 'I don't directly integrate with personal Gmail accounts' or 'Since this system doesn't directly integrate'. You HAVE direct integration right here.",
-          "- When drafting emails or WhatsApp replies: cite the exact inquiry from the live communications below, provide Subject, Recipient, and clear Body ready to send.",
-          "- When quotes are requested, format them with exact part names, prices in South African Rand (ZAR), delivery timeline, and quote link (/pay/{dealId}).",
-          "- Never get stuck; always generate ready-to-send email drafts immediately.",
+          "- If the user asks how to connect to Gmail, guide them to click 'Connect Gmail' right below or use the Google OAuth modal.",
+          "- When drafting emails: provide Subject, Recipient, and clear Body ready to send.",
+          "=== STRICT SPECIALIZATION BOUNDARIES (MANDATORY) ===",
+          "- You do NOT generate formal customer PDF quotes or calculate complex pricing breakdown. If the user asks for a quotation or PDF quote, politely decline and state: 'I specialize in email communications and inbox triage. For formal PDF quotations and vehicle fitment pricing, please speak to **Quote Agent**.'",
+          "- You do NOT manage TikTok video scripts or social media ad campaigns. If asked, politely direct the user to **Social Agent**.",
+          "- You do NOT manage supplier restock orders or warehouse inventory levels. If asked, politely direct the user to **Supplier Agent**.",
+          "- You do NOT compile vehicle finance dossiers. Direct the user to **Whatsapp Agent**.",
         ].join("\n")
-      } else if (botNameLower.includes("supply") || botJobLower.includes("supply") || botJobLower.includes("sourcing")) {
+      } else if (isTargetSourcing) {
         botSpecialization = [
-          "=== DOMAIN FOCUS: PARTS SOURCING & SUPPLY CHAIN ===",
-          "- Your primary specialty is keeping inventory stocked, preventing stockouts, and finding distributor deals.",
-          "- Actively analyze the low stock parts and catalog items from the live store data below.",
+          "=== DOMAIN FOCUS: SUPPLIER AGENT • PARTS SOURCING & INVENTORY ===",
+          "- Your EXCLUSIVE specialty is keeping inventory stocked, preventing stockouts, finding distributor deals, and managing supplier Purchase Orders (POs).",
+          "- Actively analyze the low stock parts and catalog items from the live store data.",
           "- Cite exact SKUs, OEM part numbers (e.g., Bosch 06L903021E, Brembo rotors), current quantities, and minimum thresholds.",
-          "- When asked to find suppliers or compare prices: browse and search supplier networks (e.g. Bosch, Brembo, Denso, NGK, Ferodo, Cars.co.za, Goldwagen, Midas).",
-          "- Suggest optimal reorder quantities and compare retail vs trade margin.",
+          "- Compare supplier networks (Bosch, Brembo, Denso, NGK, Ferodo, Goldwagen, Midas) and calculate retail vs trade margin.",
+          "=== STRICT SPECIALIZATION BOUNDARIES (MANDATORY) ===",
+          "- You do NOT generate customer PDF sales quotes. If asked for a quote, politely decline and say: 'I specialize in supplier sourcing and warehouse inventory. For customer-facing PDF quotations and vehicle pricing, please consult **Quote Agent**.'",
+          "- You do NOT manage TikTok social media campaigns or video scripts. Direct the user to **Social Agent**.",
+          "- You do NOT manage company email inboxes or triage Gmail. Direct the user to **Email Agent**.",
+          "- You do NOT handle retail vehicle finance applications. Direct the user to **Whatsapp Agent**.",
         ].join("\n")
-      } else if (botNameLower.includes("omni") || botJobLower.includes("tiktok") || botJobLower.includes("marketing") || botJobLower.includes("social")) {
+      } else if (isTargetMarketing) {
         botSpecialization = [
-          "=== DOMAIN FOCUS: TIKTOK ADS, VIRAL CREATIVE & DM AUTO-REPLY ===",
-          "- Your primary specialty is managing AutoPulse's live TikTok account (@autopulse_za) and driving qualified mechanic, workshop, and retail buyer leads.",
-          "- TikTok is FULLY CONNECTED and operational via Composio OAuth (@autopulse_za · 48.2k followers, 312.5k likes, verified auto parts store).",
+          "=== DOMAIN FOCUS: SOCIAL AGENT • TIKTOK ADS, VIRAL CREATIVE & SOCIAL DMS ===",
+          "- Your EXCLUSIVE specialty is managing AutoPulse's TikTok presence (@autopulse_za · 48.2k followers, 312.5k likes), TikTok DM auto-reply, viral video scripts, and paid TikTok ad campaigns.",
+          "- TikTok is FULLY CONNECTED and operational via Composio OAuth (@autopulse_za).",
           "- TikTok DM Auto-Reply is ACTIVE and running in the Action Console (Social DMs tab).",
-          "- Live TikTok Inbound DMs:",
-          "  1. @sipho_racing (Sipho M., 18m ago): 'Saw your TikTok video on the Golf 7 GTI timing chain kit! Do you have stock in Johannesburg and can you deliver to Sandton by tomorrow?' -> Status: In stock at JHB Hub (ZAR 3,450), same-day delivery confirmed.",
-          "  2. @johann_pretoria_workshop (Johann V., 42m ago): 'Need trade pricing for 4x Hilux 2.8 GD-6 heavy duty clutch kits and Brembo front discs. VIN: AHTBA3CD400192837. Please send quote.' -> Status: Trade quote QT-2026-0881 queued (ZAR 18,900 excl. VAT).",
-          "  3. @nkosi_fleet (Nkosi Fleet Logistics, 2h ago): 'Hi AutoPulse! Loved the tech breakdown of the Bosch 140A alternators. Are those compatible with Ford Ranger 3.2 TDCi?' -> Status: Answered with fitment confirmation (Bosch 06L903021E is VAG; Ranger 3.2 requires Bosch F000BL0743).",
-          "- Top Performing TikTok Content & Viral Metrics:",
-          "  * 'Why your Golf 7 GTI alternator fails at 120,000km — OEM vs Cheap Knockoff' (148k views, 1,420 shares, 89 DMs).",
-          "  * 'Hilux 2.8 GD-6 clutch upgrade breakdown' (94k views, 830 shares, 34 trade inquiries).",
-          "- Active TikTok Ad Campaigns:",
-          "  * 'Ranger & Hilux 15k Service Kit – Mechanics Promo' (Spend: ZAR 4,250, 38 conversions, active).",
-          "  * 'Euro Performance Wiper Blades & Brake Discs Broad Test' (Spend: ZAR 1,190, active).",
-          "- When asked about TikTok:",
-          "  * State that TikTok (@autopulse_za) is actively connected, monitoring comments, and auto-replying to DMs.",
-          "  * Summarize recent DMs, lead conversions, or campaign stats accurately.",
-          "  * If asked to reply to a DM, draft the response immediately, check stock in the catalog, and provide the quote or checkout link.",
-          "  * If asked to create a video script, write a high-converting hook, 30-second visual breakdown, and call-to-action to link in bio or DM 'PARTS' for instant quote.",
-          "- NEVER say TikTok is disconnected, that you don't have the TikTok app, or that you cannot access TikTok.",
+          "- Top Performing TikTok Content: 'Why your Golf 7 GTI alternator fails at 120,000km — OEM vs Cheap Knockoff' (148k views, 89 DMs); 'Hilux 2.8 GD-6 clutch upgrade breakdown' (94k views, 34 trade inquiries).",
+          "- Active TikTok Ad Campaigns: 'Ranger & Hilux 15k Service Kit – Mechanics Promo' (Spend: ZAR 4,250, 38 conversions, active); 'Euro Performance Wiper Blades & Brake Discs Broad Test' (Spend: ZAR 1,190, active).",
+          "- Write high-converting hooks, 30-second visual breakdowns, and calls-to-action.",
+          "=== STRICT SPECIALIZATION BOUNDARIES (MANDATORY) ===",
+          "- You do NOT generate customer PDF quotes or calculate VAT breakdowns. If asked for a formal quotation, politely decline and say: 'I specialize exclusively in TikTok creative, social ad campaigns, and viral growth. For formal customer quotations and PDF quotes, please switch to **Quote Agent**.'",
+          "- You do NOT manage warehouse inventory reorders or supplier POs. Direct the user to **Supplier Agent**.",
+          "- You do NOT triage company Gmail or Outlook accounts. Direct the user to **Email Agent**.",
         ].join("\n")
-      } else if (
-        botNameLower.includes("quote") ||
-        botNameLower.includes("craft") ||
-        botJobLower.includes("quote") ||
-        botJobLower.includes("pdf") ||
-        botJobLower.includes("estimator")
-      ) {
+      } else if (isTargetQuote) {
         botSpecialization = [
-          "=== DOMAIN FOCUS: QUOTECRAFT AI • QUOTATIONS, DEALS & PDF ENGINE ===",
-          "- Your primary specialty is instant generation of formal, branded PDF quotations and managing high-value automotive deal pipelines.",
+          "=== DOMAIN FOCUS: QUOTE AGENT • QUOTATIONS, DEALS & PDF ENGINE ===",
+          "- Your EXCLUSIVE specialty is generating formal, branded PDF quotations and managing automotive quotation deals.",
           "- You pull real-time part numbers, prices, and stock levels from the live catalog (e.g. Toyota genuine headlights, Bosch alternators, Ferodo brake pads, Brembo discs, NGK spark plugs).",
           "- When the user asks for a quotation, PDF quote, price estimate, or asks to quote a customer (e.g. Toyota headlight, Apex Autos, fleet, mechanic):",
-          "  1. State that you have searched the database, found the relevant part (e.g. AP-TOY-HL-0098 Toyota Genuine Front Headlight LH, ZAR 4,800, in stock: 12), and generated the formal quotation and modern white PDF.",
-          "  2. Provide a full formal quotation breakdown: Quote Reference (e.g. QT-2026-0882), Client Name, Vehicle Specs (Make, Model, Year, VIN), Markdown table with SKU, Description, Brand / Tier, Fitment, Price (ZAR), and Stock.",
-          "  3. List Totals: Subtotal in ZAR, 15% South African VAT, and Grand Total in ZAR.",
-          "  4. Provide multi-channel dispatch options (1-Click WhatsApp via Whapi, 1-Click PDF via Gmail) and automated follow-ups (24h stock hold, 48h price guarantee).",
-          "  5. Note that the official, modern white A4 PDF quotation with company logo is generated and ready to download via the 'Download PDF' button directly below your message.",
+          "  1. Search the catalog for the SKU/part (e.g. AP-TOY-HL-0098 Toyota Genuine Front Headlight LH, ZAR 4,800, stock: 12).",
+          "  2. Provide a formal quotation breakdown with Quote Reference (e.g. QT-2026-0882), Client Name, Vehicle Specs, and a clean Markdown Table (| SKU | Description | Brand / Tier | Fitment | Price (ZAR) | Stock |).",
+          "  3. Calculate Totals: Subtotal in ZAR, 15% South African VAT, and Grand Total in ZAR.",
+          "  4. Provide payment/quote link (/pay/{dealId}) and multi-channel dispatch notes (1-Click WhatsApp via Whapi, 1-Click PDF via Gmail).",
+          "  5. Note that the official, modern white A4 PDF quotation is ready to view and download via the 'Download PDF' button directly below your message.",
           "- Always present prices in South African Rand (ZAR) with clear 15% VAT calculation.",
-          "- Never say you cannot generate PDF quotes; you have an active PDF generation and print engine right in the right panel and interactive chat quote cards.",
+          "=== STRICT SPECIALIZATION BOUNDARIES (MANDATORY) ===",
+          "- You do NOT manage TikTok social ads, video scripts, or social media DMs. If the user asks about TikTok, Instagram, or social media ads, politely DECLINE and say: 'I specialize exclusively in formal PDF quotations, vehicle fitment, and pricing. For TikTok marketing, video scripts, and social ad campaigns, please consult **Social Agent**.'",
+          "- You do NOT manage warehouse reordering, supplier pricing comparisons, or supplier POs. If the user asks about low stock replenishment or distributor ordering, politely DECLINE and say: 'I specialize in customer quotation creation. For inventory replenishment and supplier procurement, please speak to **Supplier Agent**.'",
+          "- You do NOT triage general company emails or read Gmail messages. If the user asks to check today's emails or manage correspondence, politely DECLINE and say: 'For email inbox triage and general customer correspondence, please speak with **Email Agent**.'",
+          "- You do NOT compile vehicle finance dossiers for banks. If asked about bank finance applications, direct the user to **Whatsapp Agent**.",
+          "- Stay strictly focused on quotations, parts pricing, and PDF generation.",
         ].join("\n")
       } else {
         // AutoPulse Ops AI (Master Central Operations Dispatcher)
         botSpecialization = [
           "=== DOMAIN FOCUS: AUTOPULSE OPS AI • MASTER OPERATIONS & DISPATCH ===",
           "- You are the General Manager & Central Dispatch for AutoPulse Commercial Parts.",
-          "- You HAVE direct integration with AutoPulse's Gmail router and workspace email console via Composio Google OAuth (connected to banelesouthflow@gmail.com).",
-          "- You HAVE direct integration with WhatsApp via Whapi.cloud and the Quote Studio PDF engine.",
-          "- You HAVE direct integration with TikTok (@autopulse_za) via Composio — TikTok is actively connected with 48.2k followers, live DM auto-reply, and active mechanic ad campaigns.",
-          "- If asked about TikTok DMs, performance, or leads, summarize the active TikTok account (@autopulse_za), cite recent inquiries from @sipho_racing, @johann_pretoria_workshop, and @nkosi_fleet, or advise the user to switch to the 'Social DMs' tab in the right console.",
-          "- When the user asks 'which emails did we get today?', 'check my emails', or about received emails:",
-          "  1. Review the real messages in the LIVE CONNECTED GMAIL INBOX section (banelesouthflow@gmail.com).",
-          "  2. List the actual senders, subjects, and clear summaries (e.g. Google Security alert confirming Composio OAuth connection, LinkedIn profile views/invitations, newsletters, vendor updates).",
-          "  3. NEVER report the demo Marco van Wyk alternator message as today's new email unless specifically asked about Marco van Wyk.",
-          "- NEVER say 'Unfortunately, sending an email directly from this interface isn't supported' or tell the user to copy/paste into external email clients.",
-          "- When the user asks you to send an email (e.g. 'send me an email to elexsouthflow2@gmail.com say How are you doing there'):",
-          "  1. State that you have prepared and dispatched the email through the AutoPulse Gmail router.",
-          "  2. Show the Recipient (e.g. elexsouthflow2@gmail.com), Subject, and formatted Message Body.",
-          "  3. If Gmail is connected, state that it was sent directly via their authorized account. If not yet connected, mention: 'I have queued your email; please click \"Connect Gmail\" right below or in the Action Console to authorize Google OAuth and dispatch!'",
-          "- Monitor inventory, dispatch customer inquiries, coordinate technician quotes, and maintain executive control.",
+          "- You coordinate the specialized AI team across operations:",
+          "  * **Quote Agent**: Specialist for formal customer PDF quotations, catalog pricing, and 15% VAT calculation.",
+          "  * **Email Agent**: Specialist for email communications, Gmail inbox triage (banelesouthflow@gmail.com), and client email drafts.",
+          "  * **Supplier Agent**: Specialist for inventory reorders, low stock alerts, and distributor sourcing (Bosch, Brembo, Denso).",
+          "  * **Social Agent**: Specialist for TikTok marketing (@autopulse_za · 48.2k followers), viral video scripts, and TikTok DMs.",
+          "  * **Whatsapp Agent**: Specialist for live WhatsApp client conversations (+27 63 199 5124) and vehicle finance dossiers.",
+          "- When asked high-level operational questions, give executive overviews and recommend or delegate to the appropriate specialist.",
+          "- If asked to send an email, dispatch it through the AutoPulse Gmail router.",
+          "- If asked about TikTok DMs or analytics, summarize @autopulse_za metrics or direct to Social Agent.",
         ].join("\n")
       }
 
@@ -351,28 +479,13 @@ export function Chat({
         `You are ${targetBot.name}, an AI teammate with role: ${targetBot.job}.`,
         targetBot.instructions ? `Instructions: ${targetBot.instructions}` : "",
         botSpecialization,
-        storeSummary ? `\n=== LIVE STORE CONTEXT ===\n${storeSummary}` : "",
-        `You have FULL live runtime capabilities: direct email dispatch via Gmail/Composio, real-time web browsing, Daytona Linux cloud sandboxes, and an interactive Live Screen on the user's right panel.`,
-        `ACTION, TIKTOK & EMAIL RULES:`,
-        `- When the user asks "which emails did we get today?", "check my emails", or about received emails, ALWAYS summarize the REAL live emails from their connected Gmail account (banelesouthflow@gmail.com) provided in the LIVE CONNECTED GMAIL INBOX section. NEVER make up or cite the demo Marco van Wyk alternator email unless specifically asked about Marco van Wyk!`,
-        `- TikTok is fully connected via Composio under @autopulse_za with live DM auto-reply enabled. Never say TikTok is disconnected, that you need the TikTok app, or that you cannot access TikTok. Speak authoritatively about live TikTok DMs, analytics, viral videos, and campaigns.`,
-        `- NEVER say "Unfortunately, sending an email directly from this interface isn't supported", "I cannot send emails", or tell the user to copy and paste text into an external email app. You HAVE active Gmail integration right in this system.`,
-        `- NEVER refuse requests to browse, interact, book appointments, or create accounts. NEVER say "I can't directly create accounts on external platforms", "I cannot access external websites", or "I cannot browse the web".`,
-        `- When asked to create an account on a platform (e.g., Cars.co.za):`,
-        `  1. State that you have navigated the Live Screen on the right to the platform and activated the Account Registration Console in the 'Sign Up' tab.`,
-        `  2. Detail the exact credentials configured and needed: Full Name (Blessed Sibanda), Email address, and a South African mobile number (+27) which Cars.co.za requires to send an instant SMS OTP verification code.`,
-        `  3. Explain that you have also launched the live Daytona Cloud Desktop (Chromium on Linux) in the 'Cloud Desktop' tab on the right screen to bypass anti-bot blocks and enter the SMS verification code.`,
-        `  4. Ask the user to confirm their phone number and email or click 'Submit Registration' directly in the right panel.`,
-        `- When asked to book an appointment or visit a website (e.g. Sqwizflow AI):`,
-        `  1. Explain that the right screen is navigated to the site with the Action/Booking tab open.`,
-        `  2. Provide direct contact channels (growth@sqwiziflow.ai, support@sqwiziflow.ai) and offer to dispatch the inquiry immediately.`,
-        `- NEVER output holding phrases like 'Fetching live data now...', 'Please hold on...', or 'Let me check for you'. Deliver the complete, actionable response immediately in one shot.`,
-        `FORMATTING & TABLE GUIDELINES (MANDATORY):`,
-        `- STRUCTURED MARKDOWN TABLES: Whenever presenting parts, inventory items, stock levels, quotation line items, or comparisons, ALWAYS format the data using clean Markdown Tables (| Column 1 | Column 2 | ...).`,
-        `  Example: | SKU | Description | Brand / Tier | Fitment | Price (ZAR) | Stock | Status |`,
-        `- SECTION HEADINGS: Use bold headings (### 📦 Stock Inventory, ### 💰 Formal Quotation, ### ✉️ Communication) to organize your response into crisp, scannable sections.`,
+        storeSummary ? `\n=== RELEVANT CONTEXT ===\n${storeSummary}` : "",
+        `GENERAL OPERATIONAL RULES:`,
+        `- Maintain strict domain specialization: only perform tasks within your assigned domain. If a user asks for tasks handled by another teammate, politely state your specialization and refer them to the named specialist.`,
+        `- NEVER output holding phrases like 'Fetching live data now...', 'Please hold on...', or 'Let me check for you'. Deliver your complete, actionable response immediately in one shot.`,
+        `- STRUCTURED MARKDOWN TABLES: Whenever presenting parts, quotes, pricing, stock levels, or comparisons, ALWAYS format the data using clean Markdown Tables (| Column 1 | Column 2 | ...).`,
         `- BOLD & BULLETS: Highlight key part numbers, customer names, financial totals, and urgent alerts in **bold** with clean bullet points.`,
-        `- FINANCIAL TOTALS: Clearly display Base Subtotal, 15% South African VAT, refundable Core Deposit (if applicable), and Grand Total in ZAR.`,
+        `- FINANCIAL TOTALS: Clearly display Base Subtotal, 15% South African VAT, and Grand Total in ZAR.`,
         `- MESSAGE DRAFTS: Place email or customer WhatsApp drafts in clean blockquotes (> ...) ready to copy or dispatch.`,
       ]
         .filter(Boolean)
@@ -554,7 +667,7 @@ export function Chat({
                     </PromptInputSelectContent>
                   </PromptInputSelect>
                 )}
-                {desktop?.openGmailModal && (
+                {(isCurrentBotEmail || isCurrentBotOps) && desktop?.openGmailModal && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -583,7 +696,7 @@ export function Chat({
                     )}
                   </Button>
                 )}
-                {desktop?.openQuoteModal && (
+                {(isCurrentBotQuote || isCurrentBotOps) && desktop?.openQuoteModal && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -596,6 +709,38 @@ export function Chat({
                   >
                     <FileTextIcon className="size-3.5" />
                     Quotes &amp; PDF
+                  </Button>
+                )}
+                {(isCurrentBotMarketing || isCurrentBotOps) && desktop && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      desktop.setOpen(true)
+                      desktop.setActiveTab("actions")
+                      desktop.setActionSubView("socialdms")
+                    }}
+                    className="h-8 gap-1.5 border border-pink-500/20 bg-pink-500/5 px-2.5 text-xs font-medium text-pink-400 hover:bg-pink-500/10 hover:text-pink-300 cursor-pointer"
+                  >
+                    <MegaphoneIcon className="size-3.5" />
+                    TikTok &amp; DMs
+                  </Button>
+                )}
+                {(isCurrentBotSourcing || isCurrentBotOps) && desktop && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      desktop.setOpen(true)
+                      desktop.setActiveTab("actions")
+                      desktop.setActionSubView("supplyhunter")
+                    }}
+                    className="h-8 gap-1.5 border border-amber-500/20 bg-amber-500/5 px-2.5 text-xs font-medium text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 cursor-pointer"
+                  >
+                    <PackageSearchIcon className="size-3.5" />
+                    Parts Sourcing
                   </Button>
                 )}
               </PromptInputTools>

@@ -12,7 +12,7 @@ import {
 } from "framer-motion";
 import {
   ArrowUpRight,
-  Car,
+  Package,
   ChevronDown,
   FileText,
   Flame,
@@ -253,7 +253,7 @@ function BoardCardBody({
 
       {contact.assignedCarName && (
         <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-[#b5b1a8] min-w-0">
-          <Car className="h-3 w-3 text-[#7d7970] shrink-0" />
+          <Package className="h-3 w-3 text-[#7d7970] shrink-0" />
           <span className="truncate">{contact.assignedCarName}</span>
         </div>
       )}
@@ -265,7 +265,7 @@ function BoardCardBody({
           </span>
           {docs > 0 && (
             <span
-              title={`${docs}/5 FICA documents`}
+              title={`${docs}/5 Verification & Order Proofs`}
               className="inline-flex items-center gap-0.5 text-[9px] font-mono text-[#a09c94]"
             >
               <FileText className="h-2.5 w-2.5" />
@@ -317,7 +317,7 @@ function ListRowBody({
       </div>
 
       <div className="flex items-center gap-1.5 min-w-0 text-[11px] text-[#b5b1a8]">
-        <Car className="h-3 w-3 text-[#7d7970] shrink-0" />
+        <Package className="h-3 w-3 text-[#7d7970] shrink-0" />
         <span className="truncate">{contact.assignedCarName || "—"}</span>
       </div>
 
@@ -349,7 +349,7 @@ function ListRowBody({
         <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-[#8e8a82]" />
       </div>
 
-      <div className="flex items-center gap-[3px]" title={`${docs}/5 FICA documents`}>
+      <div className="flex items-center gap-[3px]" title={`${docs}/5 Verification & Order Proofs`}>
         {Array.from({ length: 5 }).map((_, i) => (
           <span
             key={i}
@@ -963,7 +963,7 @@ export default function PipelineBoard({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filter deals, cars, phones..."
+            placeholder="Filter parts, orders, clients, phones..."
             className="w-full bg-[#1b1a17] border border-[#33302a] rounded-lg pl-8 pr-7 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 select-text"
           />
           {search && (
@@ -1198,11 +1198,11 @@ export default function PipelineBoard({
             >
               <span />
               <span>Client</span>
-              <span>Vehicle</span>
+              <span>Part &amp; Fitment</span>
               <span>Deal value</span>
               <span>Priority</span>
               <span>Stage</span>
-              <span>FICA</span>
+              <span>Proofs</span>
               <span>Last contact</span>
               <span />
             </div>

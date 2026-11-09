@@ -80,10 +80,10 @@ export function AppSidebar() {
   React.useEffect(() => {
     if (data) {
       const hasWaBot = bots.some(
-        (b) => b.name.includes("WhatsApp") || b.name.includes("Fame")
+        (b) => b.name.toLowerCase().includes("whatsapp") || b.name.includes("Fame")
       )
       const hasWaTeam = chats.some(
-        (c) => c.kind === "group" && (c.name.includes("WhatsApp") || c.name.includes("Fame"))
+        (c) => c.kind === "group" && (c.name.toLowerCase().includes("whatsapp") || c.name.includes("Fame"))
       )
       if (!hasWaBot || !hasWaTeam || bots.length < 6) {
         ensureFleetMut({}).catch(() => {})

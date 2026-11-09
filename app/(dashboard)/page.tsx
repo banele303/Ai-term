@@ -253,11 +253,11 @@ export default function TeammatesHomePage() {
   }
 
   // Find bots for quick actions
-  const whatsAppBot = bots.find((b) => b.name.includes("Fame") || b.name.includes("WhatsApp") || b.job.includes("WhatsApp"))
-  const emailBot = bots.find((b) => b.name.includes("Comm") || b.job.includes("Email") || b.name.includes("Aero"))
-  const supplyBot = bots.find((b) => b.name.includes("Supply") || b.job.includes("Supply"))
-  const socialBot = bots.find((b) => b.name.includes("Omni") || b.job.includes("TikTok"))
-  const quoteBot = bots.find((b) => b.name.includes("Quote") || b.job.includes("Quote"))
+  const whatsAppBot = bots.find((b) => b.name.toLowerCase().includes("whatsapp") || b.name.includes("Fame"))
+  const emailBot = bots.find((b) => b.name.toLowerCase().includes("email") || b.name.includes("Comm") || b.name.includes("Aero"))
+  const supplyBot = bots.find((b) => b.name.toLowerCase().includes("supplier") || b.name.includes("Supply"))
+  const socialBot = bots.find((b) => b.name.toLowerCase().includes("social") || b.name.includes("Omni") || b.job.includes("TikTok"))
+  const quoteBot = bots.find((b) => b.name.toLowerCase().includes("quote"))
   const opsBot = bots.find((b) => b.name.includes("Ops")) || bots[0]
 
   return (
@@ -861,7 +861,7 @@ export default function TeammatesHomePage() {
                           className="shrink-0 gap-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs cursor-pointer"
                         >
                           <PackageSearch className="size-3.5" />
-                          Hunt Supplier with SupplyHunter
+                          Hunt Supplier with Supplier Agent
                         </Button>
                       )}
                     </div>
@@ -914,7 +914,7 @@ export default function TeammatesHomePage() {
                           className="shrink-0 gap-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs cursor-pointer"
                         >
                           <Mail className="size-3.5" />
-                          Draft Reply with AeroComm
+                          Draft Reply with Email Agent
                         </Button>
                       )}
                     </div>
@@ -970,7 +970,7 @@ export default function TeammatesHomePage() {
                           className="shrink-0 gap-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs cursor-pointer"
                         >
                           <Share2 className="size-3.5" />
-                          Optimize with OmniPulse
+                          Optimize with Social Agent
                         </Button>
                       )}
                     </div>

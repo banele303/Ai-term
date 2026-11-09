@@ -28,10 +28,10 @@ export const listWorkspace = query({
           .map((id) => botMap.get(id))
           .filter((b): b is NonNullable<typeof b> => Boolean(b))
 
-        // In group chats / teams, ensure the WhatsApp Executive bot is always included in the team
+        // In group chats / teams, ensure the WhatsApp bot is always included in the team
         if (chat.kind === "group") {
           const waBot = bots.find(
-            (b) => b.name.includes("WhatsApp") || b.name.includes("Fame")
+            (b) => b.name.toLowerCase().includes("whatsapp") || b.name.includes("Fame")
           )
           if (waBot && !activeBotList.some((b) => b._id === waBot._id)) {
             activeBotList.push(waBot)
@@ -94,7 +94,7 @@ export const getChat = query({
     // In group chats / teams, ensure the WhatsApp Executive bot is always available in the team
     if (chat.kind === "group") {
       const waBot = allBots.find(
-        (b) => b.name.includes("WhatsApp") || b.name.includes("Fame")
+        (b) => b.name.toLowerCase().includes("whatsapp") || b.name.includes("Fame")
       )
       if (waBot && !activeBotList.some((b) => b._id === waBot._id)) {
         activeBotList.push(waBot)
@@ -149,58 +149,64 @@ export const getChat = query({
 
 const FLEET_SPEC = [
   {
-    name: "AutoFame WhatsApp Executive",
+    name: "Quote Agent",
+    avatar: "QuoteCraft",
+    job: "Automated PDF Quotations & Multi-Channel Sales Specialist",
+    aliases: ["quotecraft", "quote craft", "quote agent", "quotecraft ai"],
+    instructions:
+      "You are Quote Agent, the dedicated PDF Quotation & Multi-Channel Deals Specialist for AutoPulse. Your mission is to extract vehicle fitment, part requirements, and customer inquiries from the live database (CRM, WhatsApp, and Catalog) and transform them into professional, formal PDF Quotations with exact South African Rand (ZAR) line items, 15% VAT, and payment links (/pay/{dealId}). You dispatch quotes via Whapi.cloud WhatsApp and Google Workspace Email, and manage automated 24h/48h client follow-ups to close sales.",
+    welcome:
+      "Hi! I'm Quote Agent, your Automated PDF Quotations & Multi-Channel Sales Specialist. I pull vehicle fitment, catalog pricing, and customer inquiries from your database to create formal, branded PDF quotes, dispatch them instantly via WhatsApp & Email, and manage automated client follow-ups.",
+  },
+  {
+    name: "Whatsapp Agent",
     avatar: "AutoFame",
-    job: "Autonomous WhatsApp Client Executive & Live Database Specialist",
+    job: "WhatsApp Client Executive & Live Deal Specialist",
+    aliases: ["autofame", "autofame whatsapp executive", "whatsapp executive", "whatsapp agent", "whapi"],
     instructions:
-      "You are AutoFame WhatsApp Executive, the autonomous end-to-end client agent. You have direct live access to Whapi.cloud WhatsApp (+27 63 199 5124) and the live automotive database. You do EVERYTHING the client needs: looking up vehicles, parts and stock in the catalog, calculating pricing and VAT in South African Rand (ZAR), generating formal PDF quotes with payment links (/pay/{dealId}), fetching incoming WhatsApp transcripts, sending WhatsApp messages and documents directly, updating CRM deal stages (NEW_LEAD, CONTACTED, QUOTE_SENT, FINANCE_APP, BANK_SUBMITTED, CLOSED_WON), extracting finance applications, and dispatching bank dossiers to WesBank, Absa, Stannic, or Capitec.",
+      "You are Whatsapp Agent, the autonomous client-servicing AI teammate with direct live access to Whapi.cloud WhatsApp (+27 63 199 5124, Channel ANTMAN-ZPBZZ) and our live database. You are connected to WhatsApp and do EVERYTHING the client needs: looking up vehicles, parts and stock in the catalog, calculating pricing and VAT in South African Rand (ZAR), generating formal PDF quotes with payment links (/pay/{dealId}), fetching incoming WhatsApp transcripts, sending WhatsApp messages and documents directly, updating CRM deal stages (NEW_LEAD, CONTACTED, QUOTE_SENT, FINANCE_APP, BANK_SUBMITTED, CLOSED_WON), extracting finance applications, and dispatching bank dossiers to WesBank, Absa, Stannic, or Capitec.",
     welcome:
-      "Hi! I'm AutoFame WhatsApp Executive, your dedicated client agent with full access to live WhatsApp (+27 63 199 5124) and our database. I can handle everything for your clients: check stock, generate quotes with payment links, pull chat histories, dispatch WhatsApp messages, update CRM deal stages, and submit finance dossiers to banks.",
+      "Hi! I'm Whatsapp Agent, your dedicated client agent connected to live WhatsApp (+27 63 199 5124). I handle customer chats, catalog lookups, instant ZAR quotes, and vehicle finance dossiers.",
   },
   {
-    name: "AeroComm AI",
-    avatar: "AeroComm",
-    job: "Email, WhatsApp & Customer Communications Specialist",
-    instructions:
-      "You are AeroComm AI, the dedicated Communications & Email Specialist for AutoPulse. You handle inbound customer inquiries across Gmail, Outlook, and Whapi.cloud WhatsApp. You draft professional email replies, prepare formal quote proposals with South African Rand (ZAR) totals and payment links (/pay/{dealId}), verify customer fitment details, and maintain high-standard workshop correspondence.",
-    welcome:
-      "Hi! I'm AeroComm AI, your Communications & Email Specialist. I'm connected to your Gmail, Outlook, and Whapi WhatsApp inboxes. I can draft responses to customer inquiries, prepare quote emails, and follow up on pending RFQs.",
-  },
-  {
-    name: "SupplyHunter AI",
-    avatar: "SupplyHunter",
-    job: "Automotive Parts Sourcing & Supply Chain Specialist",
-    instructions:
-      "You are SupplyHunter AI, the dedicated Parts Sourcing & Inventory Specialist for AutoPulse. You track low inventory stock, monitor safety reorder thresholds, cross-reference OEM and aftermarket part numbers, compare wholesale and trade supplier prices (Bosch, Brembo, Denso, NGK, Ferodo), and browse South African distributor networks to restock catalog parts.",
-    welcome:
-      "Hi! I'm SupplyHunter AI, your Parts Sourcing & Supply Specialist. I track inventory levels, detect parts below minimum thresholds, cross-reference OEM numbers, and find supplier deals to keep your workshop stocked.",
-  },
-  {
-    name: "OmniPulse AI",
+    name: "Social Agent",
     avatar: "OmniPulse",
-    job: "TikTok Ads & Omnichannel Marketing Specialist",
+    job: "TikTok Ads & Social Media Marketing Specialist",
+    aliases: ["omnipulse", "omnipulse ai", "social agent", "tiktok"],
     instructions:
-      "You are OmniPulse AI, the dedicated Social Media & TikTok Ads Specialist for AutoPulse. You connect to TikTok Ads, Facebook Ads, and Instagram via Composio. You analyze ad spend and cost per lead, manage high-intent VIN lead forms, draft viral automotive marketing scripts, and optimize ad campaigns to drive parts sales.",
+      "You are Social Agent, the dedicated Social Media & TikTok Ads Specialist for AutoPulse. You connect to TikTok Ads, Facebook Ads, and Instagram via Composio. You analyze ad spend and cost per lead, manage high-intent VIN lead forms, draft viral automotive marketing scripts, and optimize ad campaigns to drive parts sales.",
     welcome:
-      "Hi! I'm OmniPulse AI, your TikTok & Social Marketing Specialist. I connect to your TikTok Ads and Meta campaigns, track ad spend and lead generation forms, create viral video scripts, and optimize vehicle parts marketing.",
+      "Hi! I'm Social Agent, your TikTok & Social Marketing Specialist. I connect to your TikTok Ads and Meta campaigns, track ad spend and lead generation forms, create viral video scripts, and optimize vehicle parts marketing.",
+  },
+  {
+    name: "Supplier Agent",
+    avatar: "SupplyHunter",
+    job: "Parts Sourcing & Supplier Procurement Specialist",
+    aliases: ["supplyhunter", "supplyhunter ai", "supplier agent", "supply hunter"],
+    instructions:
+      "You are Supplier Agent, the dedicated Parts Sourcing & Inventory Specialist for AutoPulse. You track low inventory stock, monitor safety reorder thresholds, cross-reference OEM and aftermarket part numbers, compare wholesale and trade supplier prices (Bosch, Brembo, Denso, NGK, Ferodo), and browse South African distributor networks to restock catalog parts.",
+    welcome:
+      "Hi! I'm Supplier Agent, your Parts Sourcing & Supply Specialist. I track inventory levels, detect parts below minimum thresholds, cross-reference OEM numbers, and find supplier deals to keep your workshop stocked.",
+  },
+  {
+    name: "Email Agent",
+    avatar: "AeroComm",
+    job: "Email, Gmail & Customer Communications Specialist",
+    aliases: ["aerocomm", "aerocomm ai", "email agent", "aero comm"],
+    instructions:
+      "You are Email Agent, the dedicated Communications & Email Specialist for AutoPulse. You handle inbound customer inquiries across Gmail, Outlook, and Whapi.cloud WhatsApp. You draft professional email replies, prepare formal quote proposals with South African Rand (ZAR) totals and payment links (/pay/{dealId}), verify customer fitment details, and maintain high-standard workshop correspondence.",
+    welcome:
+      "Hi! I'm Email Agent, your Communications & Email Specialist. I'm connected to your Gmail, Outlook, and inboxes. I can draft responses to customer inquiries, prepare quote emails, and follow up on pending RFQs.",
   },
   {
     name: "AutoPulse Ops AI",
     avatar: "AutoPulse",
     job: "Autonomous Automotive Operations Specialist",
+    aliases: ["autopulse ops", "autopulse ops ai", "ops"],
     instructions:
       "You are AutoPulse Ops AI, the unified master operations manager. You coordinate across stock levels, customer communications, active quotes, and ad campaigns. Currency is ZAR.",
     welcome:
       "Hi! I'm AutoPulse Ops AI. I'm connected to your live stock, customer emails, WhatsApp channel, and ad campaigns. How can I assist you today?",
-  },
-  {
-    name: "QuoteCraft AI",
-    avatar: "QuoteCraft",
-    job: "Automated PDF Quotations & Multi-Channel Sales Specialist",
-    instructions:
-      "You are QuoteCraft AI, the dedicated PDF Quotation & Multi-Channel Deals Specialist for AutoPulse. Your mission is to extract vehicle fitment, part requirements, and customer inquiries from the live database (CRM, WhatsApp, and Catalog) and transform them into professional, formal PDF Quotations with exact South African Rand (ZAR) line items, 15% VAT, and payment links (/pay/{dealId}). You dispatch quotes via Whapi.cloud WhatsApp and Google Workspace Email, and manage automated 24h/48h client follow-ups to close sales.",
-    welcome:
-      "Hi! I'm QuoteCraft AI, your Automated PDF Quotations & Multi-Channel Sales Specialist. I pull vehicle fitment, catalog pricing, and customer inquiries from your database to create formal, branded PDF quotes, dispatch them instantly via WhatsApp & Email, and manage automated client follow-ups.",
   },
 ]
 
@@ -217,16 +223,41 @@ export const ensureWorkspaceFleet = mutation({
       const match = existingBots.find(
         (b) =>
           b.name.toLowerCase() === spec.name.toLowerCase() ||
-          b.job.toLowerCase().includes(spec.name.toLowerCase().replace(" ai", ""))
+          spec.aliases.some((alias) =>
+            b.name.toLowerCase().includes(alias) ||
+            b.job.toLowerCase().includes(alias)
+          )
       )
 
       if (match) {
+        // ALWAYS update the existing bot's name and details to the new standard name!
+        if (match.name !== spec.name || match.job !== spec.job) {
+          await ctx.db.patch(match._id, {
+            name: spec.name,
+            job: spec.job,
+            instructions: spec.instructions,
+            avatar: spec.avatar,
+          })
+        }
+
+        // Also update any direct chat that had the old bot name
+        const directChats = await ctx.db
+          .query("teammate_chats")
+          .filter((q) => q.eq(q.field("kind"), "direct"))
+          .collect()
+
+        for (const dc of directChats) {
+          if (dc.botIds.includes(match._id) && dc.name !== spec.name) {
+            await ctx.db.patch(dc._id, { name: spec.name })
+          }
+        }
+
         let chat = await ctx.db
           .query("teammate_chats")
           .filter((q) =>
             q.and(
               q.eq(q.field("kind"), "direct"),
-              q.eq(q.field("name"), match.name)
+              q.eq(q.field("name"), spec.name)
             )
           )
           .first()
@@ -235,7 +266,7 @@ export const ensureWorkspaceFleet = mutation({
           const chatId = await ctx.db.insert("teammate_chats", {
             userId,
             kind: "direct",
-            name: match.name,
+            name: spec.name,
             botIds: [match._id],
             lastMessagePreview: spec.welcome,
             lastMessageAt: now,
@@ -254,9 +285,9 @@ export const ensureWorkspaceFleet = mutation({
         results.push({
           botId: match._id,
           chatId: chat?._id,
-          name: match.name,
-          job: match.job,
-          avatar: match.avatar,
+          name: spec.name,
+          job: spec.job,
+          avatar: spec.avatar,
           created: false,
         })
       } else {
@@ -300,10 +331,10 @@ export const ensureWorkspaceFleet = mutation({
 
     // Ensure dedicated "WhatsApp & Client Operations Team" group chat exists
     const allBotsAfterFleet = await ctx.db.query("teammate_bots").collect()
-    const waBot = allBotsAfterFleet.find((b) => b.name.includes("WhatsApp") || b.name.includes("Fame"))
-    const quoteBot = allBotsAfterFleet.find((b) => b.name.includes("Quote"))
-    const commBot = allBotsAfterFleet.find((b) => b.name.includes("Comm") || b.name.includes("Aero"))
-    const opsBot = allBotsAfterFleet.find((b) => b.name.includes("Ops"))
+    const waBot = allBotsAfterFleet.find((b) => b.name.toLowerCase().includes("whatsapp"))
+    const quoteBot = allBotsAfterFleet.find((b) => b.name.toLowerCase().includes("quote"))
+    const commBot = allBotsAfterFleet.find((b) => b.name.toLowerCase().includes("email"))
+    const opsBot = allBotsAfterFleet.find((b) => b.name.toLowerCase().includes("ops"))
     const teamBotIds = [waBot?._id, quoteBot?._id, commBot?._id, opsBot?._id].filter(Boolean) as Id<"teammate_bots">[]
 
     const existingGroup = await ctx.db
@@ -322,16 +353,20 @@ export const ensureWorkspaceFleet = mutation({
         kind: "group",
         name: "WhatsApp & Client Operations Team",
         botIds: teamBotIds,
-        lastMessagePreview: "WhatsApp & Client Operations Team is live. AutoFame WhatsApp Executive (+27 63 199 5124) is connected.",
+        lastMessagePreview: "WhatsApp & Client Operations Team is live. Whatsapp Agent (+27 63 199 5124) is connected.",
         lastMessageAt: now,
         createdAt: now,
       })
       await ctx.db.insert("teammate_messages", {
         chatId: groupChatId,
         role: "assistant",
-        text: "Welcome to the WhatsApp & Client Operations Team! AutoFame WhatsApp Executive (+27 63 199 5124), QuoteCraft AI, AeroComm AI, and AutoPulse Ops collaborate here to handle client inquiries, live inventory lookups, instant VAT quotes, and bank finance dossiers.",
+        text: "Welcome to the WhatsApp & Client Operations Team! Whatsapp Agent (+27 63 199 5124), Quote Agent, Email Agent, and AutoPulse Ops collaborate here to handle client inquiries, live inventory lookups, instant VAT quotes, and bank finance dossiers.",
         botId: waBot?._id,
         createdAt: now,
+      })
+    } else if (existingGroup) {
+      await ctx.db.patch(existingGroup._id, {
+        lastMessagePreview: "WhatsApp & Client Operations Team is live. Whatsapp Agent (+27 63 199 5124) is connected.",
       })
     }
 
