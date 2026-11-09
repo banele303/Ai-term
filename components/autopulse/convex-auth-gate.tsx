@@ -32,19 +32,37 @@ function LiveConvexAuthGate({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="dark flex min-h-svh flex-col items-center justify-center p-6 bg-zinc-950 text-zinc-200">
-        <div className="w-full max-w-sm space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
-          <div className="flex items-center gap-3">
-            <Skeleton className="size-10 rounded-xl bg-sky-500/20" />
-            <div className="space-y-1.5 flex-1">
-              <Skeleton className="h-4 w-32 bg-zinc-800" />
-              <Skeleton className="h-3 w-48 bg-zinc-800/60" />
+      <div className="dark flex min-h-svh flex-col items-center justify-center p-6 bg-zinc-950 text-zinc-200 select-none">
+        <div className="w-full max-w-md space-y-6 rounded-3xl border border-zinc-800/80 bg-zinc-900/60 p-8 shadow-2xl backdrop-blur-xl">
+          {/* Header */}
+          <div className="flex items-center gap-3.5 pb-4 border-b border-zinc-800/60">
+            <Skeleton className="size-11 rounded-2xl bg-sky-500/20" />
+            <div className="space-y-2 flex-1">
+              <Skeleton className="h-4 w-36 bg-zinc-800" />
+              <Skeleton className="h-3 w-52 bg-zinc-800/60" />
             </div>
           </div>
-          <Skeleton className="h-10 w-full rounded-lg bg-zinc-850" />
-          <div className="space-y-2 pt-2">
-            <Skeleton className="h-9 w-full rounded-md bg-zinc-800" />
-            <Skeleton className="h-9 w-full rounded-md bg-zinc-800" />
+
+          {/* Form fields */}
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Skeleton className="h-2.5 w-16 bg-zinc-800" />
+              <Skeleton className="h-10 w-full rounded-xl bg-zinc-850" />
+            </div>
+            <div className="space-y-1.5">
+              <Skeleton className="h-2.5 w-16 bg-zinc-800" />
+              <Skeleton className="h-10 w-full rounded-xl bg-zinc-850" />
+            </div>
+          </div>
+
+          {/* Submit button & quick link */}
+          <div className="space-y-2.5 pt-2">
+            <Skeleton className="h-10 w-full rounded-xl bg-sky-500/20" />
+            <Skeleton className="h-10 w-full rounded-xl bg-zinc-800/60" />
+          </div>
+
+          <div className="flex justify-center pt-2">
+            <Skeleton className="h-2.5 w-40 bg-zinc-850" />
           </div>
         </div>
       </div>

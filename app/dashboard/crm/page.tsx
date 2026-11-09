@@ -31,6 +31,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/sonner";
+import { CrmBoardSkeleton } from "@/components/ui/skeleton";
 import PipelineBoard from "./PipelineBoard";
 
 type PipelineStage =
@@ -885,6 +886,10 @@ ${
     () => masterContacts.filter((c) => c.isRecentChat).length,
     [masterContacts]
   );
+
+  if (crmWorkspace === undefined) {
+    return <CrmBoardSkeleton />;
+  }
 
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col bg-[#11100e] text-[#eae7e1] font-sans select-none">

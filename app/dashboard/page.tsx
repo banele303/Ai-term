@@ -442,9 +442,13 @@ function CommandCenterUI({
         {commandReply !== null && (
           <div className="mt-3 rounded-xl border border-emerald-500/30 bg-zinc-950/90 p-3.5 text-sm leading-relaxed whitespace-pre-wrap text-zinc-200">
             {commandReply || (
-              <div className="space-y-1.5 py-0.5">
-                <Skeleton className="h-3.5 w-40 bg-zinc-700/60" />
-                <Skeleton className="h-3.5 w-60 bg-zinc-700/40" />
+              <div className="space-y-2 py-1 select-none">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="size-2 rounded-full bg-emerald-400" />
+                  <Skeleton className="h-3.5 w-44 bg-zinc-700/60" />
+                </div>
+                <Skeleton className="h-3.5 w-full bg-zinc-700/40" />
+                <Skeleton className="h-3.5 w-4/5 bg-zinc-700/40" />
               </div>
             )}
           </div>

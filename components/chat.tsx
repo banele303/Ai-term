@@ -619,9 +619,15 @@ export function Chat({
                       )}
                     </>
                   ) : (
-                    <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
-                      <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="font-mono text-zinc-400">{currentBot?.name ?? "Agent"} is thinking...</span>
+                    <div className="space-y-2 py-1 select-none">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="font-mono text-zinc-400">{currentBot?.name ?? "Agent"} is thinking...</span>
+                      </div>
+                      <div className="space-y-1.5 pt-1">
+                        <Skeleton className="h-3.5 w-4/5 bg-zinc-800/80" />
+                        <Skeleton className="h-3.5 w-3/5 bg-zinc-800/60" />
+                      </div>
                     </div>
                   )}
                 </MessageContent>

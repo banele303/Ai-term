@@ -2599,9 +2599,29 @@ export function DesktopPanel({
 
               <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-zinc-950">
                 {isStartingDesktop ? (
-                  <div className="flex w-full max-w-sm flex-col gap-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-5">
-                    <Skeleton className="h-4 w-40 bg-zinc-800" />
-                    <Skeleton className="h-24 w-full bg-zinc-900" />
+                  <div className="flex h-full w-full flex-col p-4 space-y-3 select-none">
+                    <div className="flex items-center gap-2 pb-2 border-b border-zinc-800/80">
+                      <div className="flex gap-1.5">
+                        <Skeleton className="size-2.5 rounded-full bg-rose-500/30" />
+                        <Skeleton className="size-2.5 rounded-full bg-amber-500/30" />
+                        <Skeleton className="size-2.5 rounded-full bg-emerald-500/30" />
+                      </div>
+                      <Skeleton className="h-6 flex-1 rounded-md bg-zinc-900" />
+                      <Skeleton className="h-6 w-20 rounded-md bg-sky-500/20" />
+                    </div>
+                    <div className="flex-1 rounded-xl border border-zinc-800 bg-zinc-900/30 p-4 space-y-3">
+                      <Skeleton className="h-6 w-48 bg-zinc-800" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-3 w-full bg-zinc-850" />
+                        <Skeleton className="h-3 w-5/6 bg-zinc-850" />
+                        <Skeleton className="h-3 w-2/3 bg-zinc-850" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-3 pt-4">
+                        <Skeleton className="h-24 rounded-lg bg-zinc-850" />
+                        <Skeleton className="h-24 rounded-lg bg-zinc-850" />
+                        <Skeleton className="h-24 rounded-lg bg-zinc-850" />
+                      </div>
+                    </div>
                   </div>
                 ) : desktopVncUrl ? (
                   <iframe

@@ -5,8 +5,7 @@ import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
 import { formatDistanceToNowStrict } from "date-fns"
 import {
-  CarFront,
-  Bot as BotIcon,
+  LayoutGrid,
   MoreHorizontal,
   Trash2,
   RotateCcw,
@@ -19,6 +18,7 @@ import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { useAgentRunner } from "@/components/agent-runner-provider"
+import { AiTeammatesLogo } from "@/components/ai-teammates-logo"
 import { ChatAvatar } from "@/components/chat-avatar"
 import { ChatMenuButton } from "@/components/chat-menu-button"
 import { CreateMenu } from "@/components/create-menu"
@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/sidebar"
 import { UserMenu } from "@/components/user-menu"
 import { toast } from "@/components/ui/toast"
+import { SidebarChatListSkeleton } from "@/components/ui/skeleton"
 
 type SidebarChat = {
   id: string
@@ -155,14 +156,29 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center justify-between px-2 pt-1">
-          <Link href="/" className="flex items-center gap-2 font-semibold text-sm">
-            <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <BotIcon className="size-4" />
+        <div className="flex items-center justify-between px-2 pt-1.5 pb-1">
+          <Link
+            href="/"
+            className="group flex items-center gap-2.5 rounded-lg p-0.5 transition-colors hover:opacity-95"
+          >
+            <AiTeammatesLogo size={32} />
+            <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-sm tracking-tight text-zinc-100 group-hover:text-white transition-colors">
+                  AI Teammates
+                </span>
+                <span className="inline-flex items-center rounded bg-sky-500/10 px-1.5 py-0.2 text-[9px] font-mono font-medium text-sky-400 border border-sky-500/20">
+                  AI
+                </span>
+              </div>
+              <span className="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">
+                Autonomous Ops
+              </span>
             </div>
-            <span className="truncate">AI Teammates</span>
           </Link>
-          <CreateMenu bots={bots} />
+          <div className="group-data-[collapsible=icon]:hidden">
+            <CreateMenu bots={bots} />
+          </div>
         </div>
         <SearchCommand>
           {chats.map((chat) => (
@@ -281,11 +297,13 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                 )
               })}
-              {chats.length === 0 && (
+              {data === undefined ? (
+                <SidebarChatListSkeleton count={6} />
+              ) : chats.length === 0 ? (
                 <div className="px-3 py-6 text-center text-xs text-muted-foreground">
                   No bots yet. Click + to create your first bot!
                 </div>
-              )}
+              ) : null}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -294,12 +312,29 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              render={<Link href="/dashboard" />}
-              tooltip="AutoPulse Command Center"
-              className="text-sky-600 dark:text-sky-400 cursor-pointer"
+              render={<a href="https://ai-term.vercel.app/dashboard/crm" />}
+              tooltip="Open Parts CRM & Pipeline"
+              className="h-auto p-0 cursor-pointer overflow-hidden rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 via-zinc-900/80 to-zinc-900/40 hover:from-emerald-500/20 hover:border-emerald-500/45 text-zinc-100 hover:text-white transition-all shadow-sm group"
             >
-              <CarFront />
-              <span>AutoPulse Command</span>
+              <div className="flex w-full items-center justify-between px-3 py-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400 group-hover:scale-105 transition-transform">
+                    <LayoutGrid className="size-3.5" />
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <span className="text-xs font-bold tracking-tight text-zinc-100 group-hover:text-white">
+                      CRM
+                    </span>
+                    <span className="text-[10px] text-zinc-400 font-mono">
+                      Parts &amp; Quotes
+                    </span>
+                  </div>
+                </div>
+                <div className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[9px] font-mono font-medium text-emerald-400 shrink-0">
+                  <span className="size-1.5 rounded-full bg-emerald-400" />
+                  <span>Live</span>
+                </div>
+              </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
